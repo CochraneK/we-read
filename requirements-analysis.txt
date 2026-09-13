@@ -1,0 +1,4 @@
+# Optional dependencies used only by scripts/analysis.py.
+# Core exporters and visualization renderers use the Python standard library.
+plotly
+wordcloud
