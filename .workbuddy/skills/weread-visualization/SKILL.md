@@ -121,11 +121,27 @@ python scripts/renderers/network.py --kind knowledge-graph
 
 ### profile
 
-生成阅读画像，但禁止把弱证据包装成确定人格诊断。画像表述应优先使用“数据显示……”“可能反映……”“从这些阅读行为看……”，而不是“你就是……”。
+回答“我的阅读记录能看出什么”，但必须把**事实**和**解释**分开。
+
+1. 读取 `visualization_context.json`
+2. `facts` 只放可直接计算或读取的客观信息，例如累计时长、有笔记书数、划线数、最近活跃主题
+3. `interpretations` 才允许放解释型结论，并且每条必须包含 `confidence`、`evidence`，有明显限制时补 `counterEvidence`
+4. 禁止输出医学/心理诊断、确定人格类型或敏感属性推断
+5. 生成符合 `schemas/reading_profile.schema.json` 的 JSON
+6. 写入 `data/analysis/reading_profile.json`
+7. 运行：
+
+```bash
+python scripts/renderers/profile.py
+```
+
+输出 `data/analysis/reading_profile.html`。
+
+画像措辞应优先使用“数据显示……”“可能反映……”“从这些阅读行为看……”，而不是“你就是……”。
 
 ### report
 
-组合现有统计图和解释型结果形成周/月/年报告。优先复用 `reading_dashboard.html`、`reading_heatmap.html`、Reading Map、Cognitive Shift、Knowledge Graph 的关键洞察，不重新计算一套口径不同的指标。
+组合现有统计图和解释型结果形成周/月/年报告。优先复用 `reading_dashboard.html`、`reading_heatmap.html`、Reading Map、Cognitive Shift、Knowledge Graph、Reading Profile 的关键洞察，不重新计算一套口径不同的指标。
 
 ## 强制分析规则
 
