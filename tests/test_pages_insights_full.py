@@ -3,10 +3,14 @@ from pathlib import Path
 import datetime as dt
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
 
 def load_module(name, path):
@@ -45,6 +49,7 @@ class FullPagesInsightsTests(unittest.TestCase):
             ])
             write_json(data, "weread_progress.json", {"u": {"progress": 0}})
             write_json(data, "weread_bookinfo.json", {})
+            write_json(data, "weread_readdata.json", {})
 
             result = insights.build_insights(data)
             serialized = json.dumps(result, ensure_ascii=False)
@@ -60,6 +65,8 @@ class FullPagesInsightsTests(unittest.TestCase):
             self.assertGreater(len(result["knowledgeGraph"]["nodes"]), 0)
             self.assertGreater(len(result["knowledgeGraph"]["edges"]), 0)
             self.assertTrue(any(x["author"] == "作者甲" for x in result["knowledgeGraph"]["bridgeAuthors"]))
+            self.assertEqual(len(result["enrichment"]["bookshelf"]), 3)
+            self.assertFalse(result["enrichment"]["scope"]["includePrivate"] is False)
 
 
 if __name__ == "__main__":
