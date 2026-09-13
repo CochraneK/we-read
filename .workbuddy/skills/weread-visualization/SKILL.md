@@ -9,8 +9,10 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 
 本 Skill 不重复 `scripts/analysis.py` 已经完成的基础统计图，而是负责更适合 AI 的解释型视觉结果。
 
-现有 `analysis.py` = 确定性统计层。  
-本 Skill = 解释型视觉层。
+- `analysis.py` = 确定性统计层
+- `build_visualization_context.py` = 统一事实层
+- 本 Skill = AI 解释层
+- `scripts/renderers/` = 稳定渲染层
 
 ## 优先复用本地数据
 
@@ -27,26 +29,89 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 
 不得为了一个可视化重复拉取已经存在的数据。
 
+## 标准入口
+
+除纯确定性 Heatmap 外，解释型可视化第一步统一运行：
+
+```bash
+python scripts/build_visualization_context.py
+```
+
+得到：
+
+```text
+data/analysis/visualization_context.json
+```
+
+默认排除 `secret=1` 的书。只有用户明确要求在**本地私密分析**中包含私密书时，才允许：
+
+```bash
+python scripts/build_visualization_context.py --include-private
+```
+
+不得把含私密书的上下文提交到 Git 或用于公开报告。
+
 ## 模式
 
 ### dashboard
+
 在已有 `analysis.py` 看板基础上给出高层概览，不重新实现 16 项统计。
 
 ### heatmap
-用每日阅读时长生成 GitHub contribution 风格热力图。数据优先来自年度 `dailyReadTimes`。
+
+用每日阅读时长生成 GitHub contribution 风格热力图。数据来自年度 `dailyReadTimes`，不使用 AI 推断。
+
+直接运行：
+
+```bash
+python scripts/renderers/heatmap.py
+```
+
+输出：
+
+```text
+data/analysis/reading_heatmap.html
+```
 
 ### reading-map
-把主题组织为“阅读版图”。输出必须包含：
 
-- 主题节点
-- 主题权重
-- 主题证据书籍
-- 主题之间的关联
-- 核心主题 / 外围主题
-- 证据覆盖率
+回答“我长期到底在关注什么”。
+
+步骤：
+
+1. 读取 `data/analysis/visualization_context.json`
+2. 按 `references/visualization-spec.md` 的证据规则提炼跨书主题
+3. 生成严格符合 `schemas/reading_map.schema.json` 的 JSON
+4. 写入 `data/analysis/reading_map.json`
+5. 运行：
+
+```bash
+python scripts/renderers/network.py --kind reading-map
+```
+
+输出：
+
+```text
+data/analysis/reading_map.html
+```
+
+主题节点必须包含：
+
+- `id`
+- `label`
+- `weight`
+- `tier`: `core | secondary | peripheral`
+- `confidence`
+- `evidence`
+- 可选 `counterEvidence`
+
+边必须有真实关联依据，禁止为了图好看而连接。
 
 ### cognitive-shift
-按时间阶段呈现兴趣与认知转向。每个阶段必须有：
+
+按时间阶段呈现兴趣与认知转向。
+
+每个阶段必须有：
 
 - 时间范围
 - 主导主题
@@ -55,12 +120,53 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 - 转向依据
 - 置信度
 
-### knowledge-graph
-构建 Book → Theme → Concept → Quote/Review 图谱。
+优先按年度数据 + 笔记时间戳划分阶段，不按固定年份强切。如果多个连续年份主题结构基本一致，应合并阶段。
 
-主题应优先来自跨书重复概念，而非仅按微信读书 category 分类。
+### knowledge-graph
+
+构建：
+
+```text
+Book → Theme → Concept → Quote / Review
+```
+
+步骤：
+
+1. 读取 `visualization_context.json`
+2. 先找跨书重复概念，再聚合主题
+3. 生成符合 `schemas/knowledge_graph.schema.json` 的 JSON
+4. 写入 `data/analysis/knowledge_graph.json`
+5. 运行：
+
+```bash
+python scripts/renderers/network.py --kind knowledge-graph
+```
+
+输出：
+
+```text
+data/analysis/knowledge_graph.html
+```
+
+节点类型限制为：
+
+- `book`
+- `theme`
+- `concept`
+- `quote`
+- `review`
+
+边类型限制为：
+
+- `contains`
+- `supports`
+- `contrasts`
+- `related`
+
+主题优先来自跨书重复概念，而不是简单把微信读书 `category` 当成主题。
 
 ### profile
+
 生成阅读画像，但禁止把弱证据包装成确定人格诊断。画像表述应优先使用：
 
 - “数据显示……”
@@ -70,7 +176,18 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 而不是“你就是……”。
 
 ### report
+
 组合现有统计图和解释型结果形成周/月/年报告。
+
+报告应优先复用：
+
+- `reading_dashboard.html` 中的确定性统计
+- `reading_heatmap.html`
+- Reading Map
+- Cognitive Shift
+- Knowledge Graph 的关键洞察
+
+不要重新计算一套与现有指标口径不同的数据。
 
 ## 强制分析规则
 
@@ -81,19 +198,22 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 5. 所有数值必须来自代码计算或原始数据，禁止模型心算估值。
 6. AI 不得生成不存在的书名、划线或阅读日期。
 7. 私密书籍和私密笔记默认不进入公开报告。
+8. 对每个高阶结论尽量保留 `counterEvidence`，避免只挑支持结论的材料。
+9. 证据不足时降低 `confidence`，不要强行补全主题。
+10. 网络图边必须有语义或证据理由；禁止仅因为节点距离近而建立关系。
 
 ## 输出流程
 
 ```text
 raw/local data
    ↓
-normalized facts
+normalized deterministic facts
    ↓
-analysis JSON
+AI analysis JSON
    ↓
-schema validation
+schema
    ↓
-renderer
+stable renderer
    ↓
 HTML / SVG / PNG
 ```
@@ -114,4 +234,9 @@ HTML / SVG / PNG
 
 ## 共享规范
 
-读取 `references/visualization-spec.md` 后再生成任何解释型可视化。
+开始任何解释型可视化前，先读取：
+
+- `references/visualization-spec.md`
+- 对应 `schemas/*.schema.json`
+
+Renderer 只负责呈现，不负责修正或发明 AI 分析结论。
