@@ -1,0 +1,14 @@
+# OS noise
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor
+*.swp
+*~

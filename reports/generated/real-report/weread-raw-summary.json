@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "range": "2024-08-18 至 2026-08-18",
+    "start": "2024-08-18",
+    "end": "2026-08-18",
+    "generatedAt": "2026-08-18 09:16:07 CST",
+    "skillVersion": "1.0.4",
+    "timezone": "Asia/Shanghai",
+    "dataCaveat": "月度数据使用 readTimes 做日级过滤；年度偏好模块按触达自然年聚合。"
+  },
+  "kpis": {
+    "totalReadTime": "336小时24分钟",
+    "totalReadHours": 336.41,
+    "readDays": 455,
+    "shelfTotal": 501,
+    "ebookCount": 500,
+    "albumCount": 0,
+    "mpCount": 1,
+    "notebookBooks": 282,
+    "noteTotal": 7586,
+    "highlightsFetchedInRange": 5469,
+    "reviewsFetchedInRange": 798,
+    "noteFetchErrors": 0
+  },
+  "coverage": {
+    "monthlyRequests": 25,
+    "annualRequests": 3,
+    "shelfBooks": 500,
+    "shelfAlbums": 0,
+    "notebooks": 282,
+    "noteDetailBooksFetched": 282,
+    "noteFetchErrors": 0
+  },
+  "chartCount": 26,
+  "portraitQuoteCount": 20
+}
