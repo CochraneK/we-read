@@ -48,7 +48,7 @@ class HeatmapTests(unittest.TestCase):
             html = heatmap.render_html(daily, [2026])
             self.assertIn("阅读热力图", html)
             self.assertIn("2026-01-02", html)
-            self.assertIn("60分钟以上", html)
+            self.assertIn("60 分钟以上", html)
 
 
 class VisualizationContextTests(unittest.TestCase):
