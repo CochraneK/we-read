@@ -8,7 +8,33 @@ Desktop.ini
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+venv/
 
 # Editor
 *.swp
 *~
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Personal WeRead data (local only)
+data/weread_*.json
+data/weread_*.md
+data/*.log
+data/analysis/*
+!data/analysis/.gitkeep
+
+# Generated/private reading artifacts
+reports/generated/
+quote_lib/金句库.json
+quote_lib/金句库_top60.md
+quote_lib/cards.html
+quote_lib/cards_package.zip
+quote_lib/.backups/
+
+# Temporary exports
+*.tmp
+*.bak
