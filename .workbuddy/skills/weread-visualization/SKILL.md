@@ -9,8 +9,9 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 
 本 Skill 不重复 `scripts/analysis.py` 已经完成的基础统计图，而是负责更适合 AI 的解释型视觉结果。
 
-- `analysis.py` = 确定性统计层
+- `analysis.py` = legacy 确定性统计层
 - `build_visualization_context.py` = 统一事实层
+- `scripts/metrics.py` = 新的可测试确定性指标层
 - 本 Skill = AI 解释层
 - `scripts/renderers/` = 稳定渲染层
 
@@ -47,7 +48,7 @@ python scripts/build_visualization_context.py --include-private
 
 ### dashboard
 
-在已有 `analysis.py` 看板基础上给出高层概览，不重新实现 16 项统计。
+在已有 `analysis.py` 看板基础上给出高层概览。新增指标优先进入 `scripts/metrics.py`，不要继续把计算散落进 legacy 单体脚本。
 
 ### heatmap
 
@@ -141,7 +142,38 @@ python scripts/renderers/profile.py
 
 ### report
 
-组合现有统计图和解释型结果形成周/月/年报告。优先复用 `reading_dashboard.html`、`reading_heatmap.html`、Reading Map、Cognitive Shift、Knowledge Graph、Reading Profile 的关键洞察，不重新计算一套口径不同的指标。
+将确定性事实和已有解释型组件汇总为一份轻量总览，而不是再计算一套新指标。
+
+可选生成 `data/analysis/reading_report.json`，格式遵循 `schemas/reading_report.schema.json`。该 JSON 只承担编辑层内容：
+
+- `title` / `subtitle` / `period`
+- `summary`
+- `highlights`
+- `takeaways`
+- `nextActions`
+
+其中数值型事实仍应来自 `visualization_context.json`；不要让模型在 `reading_report.json` 中重新估算阅读时长、书目数量或笔记数。
+
+渲染：
+
+```bash
+python scripts/renderers/report.py
+```
+
+输出：
+
+```text
+data/analysis/reading_report.html
+```
+
+Report renderer 会自动读取存在的：
+
+- `reading_map.json`
+- `cognitive_shift.json`
+- `knowledge_graph.json`
+- `reading_profile.json`
+
+如果某个解释型组件尚未生成，报告应优雅降级为“尚未生成”，不能失败或伪造占位结论。若对应详细 HTML 已存在，总览页会自动提供深挖入口。
 
 ## 强制分析规则
 
