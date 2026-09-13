@@ -11,8 +11,53 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 from collections import Counter, defaultdict
 from pathlib import Path
+
+import build_pages_report as _report
+import pages_enrichment
+import pages_enrich_site
+
+
+def _env_true(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _install_enrichment_template() -> None:
+    """Install optional ecosystem-derived UI into the existing report template.
+
+    The Pages workflow already opts into full-data mode. Keeping this hook here
+    avoids adding workflow permissions or another deployment command.
+    """
+    if not _env_true("WEREAD_PAGES_INCLUDE_PRIVATE", False):
+        return
+    template = _report.TEMPLATE
+    if 'id="shelf-explorer"' in template:
+        return
+    template = template.replace("</style>", pages_enrich_site.CSS + "\n</style>", 1)
+    template = template.replace(
+        "</nav>",
+        '<a href="#clock">阅读时钟</a><a href="#progress">进度</a><a href="#recall">回顾</a><a href="#shelf-explorer">全书架</a></nav>',
+        1,
+    )
+    marker = '  <article class="card wide privacy">'
+    if marker in template:
+        template = template.replace(marker, pages_enrich_site.HTML + "\n" + marker, 1)
+    # E is sourced from the same embedded D object, so report-data.json and the
+    # rendered page cannot silently diverge.
+    template = template.replace(
+        "</script>",
+        "\nconst E=(D.insights||{}).enrichment||{};\n" + pages_enrich_site.JS + "\n</script>",
+        1,
+    )
+    _report.TEMPLATE = template
+
+
+_install_enrichment_template()
 
 
 def load_json(path: Path, default):
@@ -142,16 +187,17 @@ def build_insights(data_dir: Path) -> dict:
             "secret": int((shelf_row or {}).get("secret") or 0) == 1,
         })
 
-    # Reading-focus shift: compare annual category note shares.
     focus_shift = []
     previous = Counter()
     for year in sorted(yearly_category):
         current = yearly_category[year]
         total = sum(current.values())
         prev_total = sum(previous.values())
+
         def share(counter, key):
             s = sum(counter.values())
             return counter.get(key, 0) / s if s else 0.0
+
         top = []
         for c, count in current.most_common(5):
             now = share(current, c)
@@ -170,7 +216,6 @@ def build_insights(data_dir: Path) -> dict:
         focus_shift.append({"year":year,"notes":total,"marks":mk,"reviews":rv,"reviewRate":round(100*rv/total,1) if total else 0.0,"topCategories":top,"rising":rising,"falling":falling,"topAuthor":{"author":ta[0],"notes":ta[1]}})
         previous = current
 
-    # Category -> book -> author graph, based on strongest note investment.
     invested = sorted((b for b in books if b["notes"] > 0), key=lambda x:(-x["notes"],x["title"]))
     top_cats = {c for c,_ in category_notes.most_common(7)}
     top_authors = {a for a,_ in author_notes.most_common(9) if a != "未知"}
@@ -178,24 +223,29 @@ def build_insights(data_dir: Path) -> dict:
     if len(graph_books) < 10:
         graph_books = invested[:18]
     nodes=[]; edges=[]; seen=set()
+
     def add(node_id,label,kind,value):
-        if node_id in seen: return
-        seen.add(node_id); nodes.append({"id":node_id,"label":label,"kind":kind,"value":value})
+        if node_id in seen:
+            return
+        seen.add(node_id)
+        nodes.append({"id":node_id,"label":label,"kind":kind,"value":value})
+
     for b in graph_books:
         ci=f"c:{b['category']}"; bi=f"b:{b['bookId']}"; ai=f"a:{b['author']}"
         add(ci,b["category"],"category",category_notes[b["category"]]); add(bi,b["title"],"book",b["notes"]); add(ai,b["author"],"author",author_notes[b["author"]])
         edges.append({"source":ci,"target":bi,"value":b["notes"]}); edges.append({"source":bi,"target":ai,"value":b["notes"]})
     bridges=[]
     for a,cats in author_categories.items():
-        if a=="未知" or len(cats)<2: continue
+        if a=="未知" or len(cats)<2:
+            continue
         bridges.append({"author":a,"categories":sorted(cats),"categoryCount":len(cats),"notes":author_notes[a]})
     bridges.sort(key=lambda x:(-x["categoryCount"],-x["notes"],x["author"]))
 
-    # Blindspots: categories with many shelf books but few noted books.
     total_noted = sum(len(v) for v in category_noted.values())
     category_rows=[]
     for c in set(category_shelf)|set(category_noted):
-        if c=="未知": continue
+        if c=="未知":
+            continue
         s=len(category_shelf[c]); n=len(category_noted[c])
         category_rows.append({"category":c,"shelfBooks":s,"notedBooks":n,"notes":category_notes[c],"engagementRate":round(100*n/s,1) if s else None,"engagedShare":round(100*n/total_noted,1) if total_noted else 0.0})
     heavy=[x for x in category_rows if x["shelfBooks"]>=3 and x["engagementRate"] is not None and x["engagementRate"]<=25]
@@ -204,19 +254,21 @@ def build_insights(data_dir: Path) -> dict:
     directions=[{"category":x["category"],"shelfBooks":x["shelfBooks"],"notedBooks":x["notedBooks"],"engagementRate":x["engagementRate"],"prompt":f"已收藏 {x['shelfBooks']} 本，但只有 {x['notedBooks']} 本形成笔记；可从现有书架任选一本做一次反向深读。"} for x in heavy[:6]]
     backlog=[]
     for b in books:
-        if b["bookId"] not in shelf_by_id or b["notes"]>0: continue
-        if b["progress"] is not None and b["progress"]>=10: continue
+        if b["bookId"] not in shelf_by_id or b["notes"]>0:
+            continue
+        if b["progress"] is not None and b["progress"]>=10:
+            continue
         backlog.append({"title":b["title"],"author":b["author"],"category":b["category"],"progress":b["progress"],"secret":b["secret"]})
     backlog.sort(key=lambda x:(x["category"],x["title"]))
     hhi=0.0
     if total_noted:
         for row in category_rows:
-            share=row["notedBooks"]/total_noted
-            hhi += share*share
+            share_value=row["notedBooks"]/total_noted
+            hhi += share_value*share_value
 
     top_books=[{"bookId":b["bookId"],"title":b["title"],"author":b["author"],"category":b["category"],"notes":b["notes"],"marks":b["marks"],"reviews":b["reviews"],"reviewRate":b["reviewRate"],"progress":b["progress"],"firstNote":b["firstNote"],"lastNote":b["lastNote"],"secret":b["secret"]} for b in invested[:12]]
     total=marks_total+reviews_total
-    return {
+    result = {
         "version":"1-full",
         "scope":{"includePrivate":True,"secretBooks":sum(1 for x in shelf_rows if int(x.get("secret") or 0)==1),"rawTextPublished":False},
         "focusShift":focus_shift,
@@ -224,3 +276,5 @@ def build_insights(data_dir: Path) -> dict:
         "blindspots":{"shelfHeavyLowEngagement":heavy[:8],"concentratedCategories":concentrated,"counterReadingDirections":directions,"lowProgressNoNoteBacklogCount":len(backlog),"lowProgressNoNoteBacklog":backlog[:10],"categoryConcentrationHHI":round(hhi,3)},
         "investment":{"topBooks":top_books,"marks":marks_total,"reviews":reviews_total,"reviewRate":round(100*reviews_total/total,1) if total else 0.0},
     }
+    result["enrichment"] = pages_enrichment.build_enrichment(data_dir, include_private=True)
+    return result
