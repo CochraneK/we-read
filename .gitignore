@@ -26,6 +26,7 @@ data/weread_*.md
 data/*.log
 data/analysis/*
 !data/analysis/.gitkeep
+data/generated-skills/
 
 # Generated/private reading artifacts
 reports/generated/
