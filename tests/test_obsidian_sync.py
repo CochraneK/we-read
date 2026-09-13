@@ -50,8 +50,11 @@ class ObsidianSyncTests(unittest.TestCase):
             text = text.replace(sync.USER_START + "\n", sync.USER_START + "\n我自己的长期笔记\n", 1)
             note.write_text(text, encoding="utf-8")
 
+            # A user-only edit should be preserved without forcing a rewrite of the
+            # managed sync region. The freshly rendered file is already identical.
             second = sync.sync_context(self.sample_context(), vault)
-            self.assertEqual(second["updated"], 1)
+            self.assertEqual(second["unchanged"], 1)
+            self.assertEqual(second["updated"], 0)
             updated = note.read_text(encoding="utf-8")
             self.assertIn("我自己的长期笔记", updated)
             self.assertIn("一条划线", updated)
