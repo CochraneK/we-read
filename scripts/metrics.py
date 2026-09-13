@@ -4,6 +4,8 @@
 
 This module contains no plotting and performs no file I/O. It is intended to
 replace duplicated calculations embedded in legacy `analysis.py` over time.
+The real-data GitHub Pages builder also imports these shared metrics, so Page
+rebuilds keep the same deterministic category/engagement definitions.
 """
 from __future__ import annotations
 
