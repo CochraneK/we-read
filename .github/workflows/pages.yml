@@ -8,6 +8,8 @@ on:
       - 'data/**'
       - 'scripts/build_pages_report.py'
       - 'scripts/pages_runtime.py'
+      - 'scripts/pages_insights.py'
+      - 'scripts/pages_insights_full.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -27,6 +29,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    env:
+      WEREAD_PAGES_INCLUDE_PRIVATE: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -34,7 +38,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
-      - name: Build real-data report
+      - name: Build full real-data report
         run: python scripts/pages_runtime.py
       - name: Configure Pages
         uses: actions/configure-pages@v6
