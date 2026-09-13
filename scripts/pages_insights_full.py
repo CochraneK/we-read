@@ -18,6 +18,7 @@ from pathlib import Path
 import build_pages_report as _report
 import pages_enrichment
 import pages_enrich_site
+import pages_story_ui
 
 
 def _env_true(name: str, default: bool = False) -> bool:
@@ -28,30 +29,36 @@ def _env_true(name: str, default: bool = False) -> bool:
 
 
 def _install_enrichment_template() -> None:
-    """Install optional ecosystem-derived UI into the existing report template.
-
-    The Pages workflow already opts into full-data mode. Keeping this hook here
-    avoids adding workflow permissions or another deployment command.
-    """
+    """Install ecosystem-derived UI into the existing report template."""
     if not _env_true("WEREAD_PAGES_INCLUDE_PRIVATE", False):
         return
     template = _report.TEMPLATE
     if 'id="shelf-explorer"' in template:
         return
-    template = template.replace("</style>", pages_enrich_site.CSS + "\n</style>", 1)
+    template = template.replace(
+        "</style>",
+        pages_enrich_site.CSS + "\n" + pages_story_ui.CSS + "\n</style>",
+        1,
+    )
     template = template.replace(
         "</nav>",
-        '<a href="#clock">阅读时钟</a><a href="#progress">进度</a><a href="#recall">回顾</a><a href="#shelf-explorer">全书架</a></nav>',
+        '<a href="#career">生涯</a><a href="#clock">阅读时钟</a><a href="#progress">进度</a><a href="#recall">回顾</a><a href="#shelf-explorer">全书架</a></nav>',
         1,
     )
     marker = '  <article class="card wide privacy">'
     if marker in template:
-        template = template.replace(marker, pages_enrich_site.HTML + "\n" + marker, 1)
-    # E is sourced from the same embedded D object, so report-data.json and the
-    # rendered page cannot silently diverge.
+        template = template.replace(
+            marker,
+            pages_story_ui.HTML + "\n" + pages_enrich_site.HTML + "\n" + marker,
+            1,
+        )
     template = template.replace(
         "</script>",
-        "\nconst E=(D.insights||{}).enrichment||{};\n" + pages_enrich_site.JS + "\n</script>",
+        "\nconst E=(D.insights||{}).enrichment||{};\n"
+        + pages_enrich_site.JS
+        + "\n"
+        + pages_story_ui.JS
+        + "\n</script>",
         1,
     )
     _report.TEMPLATE = template
@@ -269,7 +276,7 @@ def build_insights(data_dir: Path) -> dict:
     top_books=[{"bookId":b["bookId"],"title":b["title"],"author":b["author"],"category":b["category"],"notes":b["notes"],"marks":b["marks"],"reviews":b["reviews"],"reviewRate":b["reviewRate"],"progress":b["progress"],"firstNote":b["firstNote"],"lastNote":b["lastNote"],"secret":b["secret"]} for b in invested[:12]]
     total=marks_total+reviews_total
     result = {
-        "version":"1-full",
+        "version":"2-full",
         "scope":{"includePrivate":True,"secretBooks":sum(1 for x in shelf_rows if int(x.get("secret") or 0)==1),"rawTextPublished":False},
         "focusShift":focus_shift,
         "knowledgeGraph":{"nodes":nodes,"edges":edges,"bridgeAuthors":bridges[:8]},
