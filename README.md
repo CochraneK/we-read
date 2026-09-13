@@ -8,11 +8,12 @@
 
 - 全量笔记 / 划线导出
 - 阅读统计、进度、书籍信息补全
-- 金句筛选、去重与版权分级
-- 16 项阅读分析 + Plotly 单页看板
+- 金句筛选、去重与版权复核候选提示
+- 16 项阅读分析 + Plotly 单页看板（legacy）
 - GitHub-style 多年阅读热力图（纯标准库、单文件 HTML）
 - Reading Map / Knowledge Graph 稳定网络图 renderer
 - Cognitive Shift 交互时间轴 renderer
+- Evidence-based Reading Profile renderer
 - 隐私感知的统一可视化上下文
 - 翻转金句卡片
 - 顾问型阅读工作流
@@ -30,7 +31,7 @@ WeRead Agent Gateway
       data/
         │
         ├─ scripts/analysis.py
-        │      └─ 16 项确定性统计 + Plotly Dashboard
+        │      └─ 16 项确定性统计 + Plotly Dashboard（legacy）
         │
         ├─ scripts/renderers/heatmap.py
         │      └─ dailyReadTimes → 阅读热力图
@@ -41,13 +42,15 @@ WeRead Agent Gateway
         ├─ AI / Skill 解释层
         │      ├─ reading_map.json
         │      ├─ knowledge_graph.json
-        │      └─ cognitive_shift.json
+        │      ├─ cognitive_shift.json
+        │      └─ reading_profile.json
         │
         ├─ scripts/renderers/network.py
         │      └─ Reading Map / Knowledge Graph → HTML
-        │
         ├─ scripts/renderers/timeline.py
         │      └─ Cognitive Shift → HTML
+        ├─ scripts/renderers/profile.py
+        │      └─ Reading Profile → HTML
         │
         └─ .workbuddy/skills/weread-visualization
 ```
@@ -89,7 +92,7 @@ python scripts/renderers/heatmap.py
 现有 16 项统计看板：
 
 ```bash
-pip install plotly wordcloud
+python -m pip install -r requirements-analysis.txt
 python scripts/analysis.py
 ```
 
@@ -135,17 +138,28 @@ python scripts/renderers/timeline.py
 
 输入 `data/analysis/cognitive_shift.json`，输出 `data/analysis/cognitive_shift.html`。
 
+Reading Profile：
+
+```bash
+python scripts/renderers/profile.py
+```
+
+输入 `data/analysis/reading_profile.json`，输出 `data/analysis/reading_profile.html`。
+
 对应 Schema：
 
 - `schemas/reading_map.schema.json`
 - `schemas/knowledge_graph.schema.json`
 - `schemas/cognitive_shift.schema.json`
+- `schemas/reading_profile.schema.json`
 
 ### 5. 金句库
 
 ```bash
 python scripts/build_quote_lib.py
 ```
+
+`public_domain` 字段为了兼容旧卡片链路仍保留 `pd/protected` 值，但 `pd` 只表示**优先人工版权复核候选**，不是法律结论。
 
 ## Skills
 
@@ -166,15 +180,15 @@ python scripts/build_quote_lib.py
 
 | 模式 | 回答的问题 | 状态 |
 |---|---|---|
-| `dashboard` | 我的阅读总体状态是什么？ | ✅ 已有 `analysis.py` |
+| `dashboard` | 我的阅读总体状态是什么？ | ⚠️ legacy `analysis.py`，待模块化 |
 | `heatmap` | 我什么时候真正持续在读？ | ✅ 完整实现 |
 | `reading-map` | 我长期关注哪些主题，它们如何相连？ | ✅ Schema + renderer |
 | `cognitive-shift` | 我的兴趣和思考方式这些年怎么变化？ | ✅ Schema + renderer |
 | `knowledge-graph` | 不同书中的划线、想法和主题如何形成网络？ | ✅ Schema + renderer |
-| `profile` | 书架、阅读行为和划线共同呈现怎样的阅读画像？ | 🚧 |
+| `profile` | 书架、阅读行为和划线共同呈现怎样的阅读画像？ | ✅ Schema + renderer |
 | `report` | 如何生成一个可分享的周/月/年阅读报告？ | 🚧 |
 
-这里的“✅ Schema + renderer”表示输出契约和稳定呈现层已经完成；主题/阶段的解释仍由 Skill 基于用户本地数据生成，不把模型结论硬编码进程序。
+这里的“✅ Schema + renderer”表示输出契约和稳定呈现层已经完成；主题/阶段/画像的解释仍由 Skill 基于用户本地数据生成，不把模型结论硬编码进程序。
 
 ## 可视化原则
 
@@ -199,6 +213,12 @@ HTML / SVG / PNG
 5. **可追溯**：高阶结论尽可能保留对应书籍、划线、时间段和反证。
 6. **避免重复请求**：新可视化优先消费本地 normalized facts，而不是每个 Skill 各自重新调用微信读书。
 
+## 统计正确性
+
+新增确定性统计应进入 `scripts/metrics.py` 并配回归测试，不再直接散落进 renderer。
+
+已发现 legacy `analysis.py` 的 A1 类别参与度存在书架/笔记交集重复计数问题；正确的 union-by-bookId 口径已经在 `metrics.category_participation()` 中实现并测试。旧 Dashboard 的迁移跟踪见 Issue #1。
+
 ## 隐私与仓库卫生
 
 `.gitignore` 已默认忽略真实微信读书 JSON、Markdown、日志、生成报告和金句产物。
@@ -215,7 +235,7 @@ export WEREAD_DATA_DIR="$HOME/.local/share/we-read"
 
 ## 测试
 
-核心可视化层只使用 Python 标准库，可以直接运行：
+核心新增代码优先只使用 Python 标准库：
 
 ```bash
 python -m unittest discover -s tests -v
@@ -224,11 +244,12 @@ python -m unittest discover -s tests -v
 GitHub Actions 同时在 Python 3.11 与 3.13 上运行测试。当前覆盖：
 
 - Heatmap 分级边界与 `dailyReadTimes` 解析
-- Heatmap HTML 输出
 - 私密书默认排除 / 显式包含
-- Reading Map / Knowledge Graph 节点和边清洗
-- 网络图 HTML 输出
+- Reading Map / Knowledge Graph 清洗与 HTML 输出
 - Cognitive Shift 阶段归一化与 HTML 输出
+- Reading Profile 事实 / 解释分层与置信度约束
+- 金句库去重、打分和版权警告
+- 类别参与度 union-by-bookId，防止重复计数
 
 ## 推荐路线
 
@@ -236,11 +257,11 @@ GitHub Actions 同时在 Python 3.11 与 3.13 上运行测试。当前覆盖：
 2. ✅ Reading Map renderer
 3. ✅ Knowledge Graph renderer
 4. ✅ Cognitive Shift renderer
-5. Reading Profile
+5. ✅ Reading Profile renderer
 6. Unified Reading Report
-7. Reading Recall / Feynman
-8. Blindspot / Counter Reading
-9. Book → Skill
-10. Shelf Organizer
+7. Legacy `analysis.py` 模块化迁移
+8. Reading Recall / Feynman
+9. Blindspot / Counter Reading
+10. Book → Skill / Shelf Organizer
 
 更详细约定见 [`AGENTS.md`](AGENTS.md) 与 [`.workbuddy/skills/weread-visualization/references/visualization-spec.md`](.workbuddy/skills/weread-visualization/references/visualization-spec.md)。
