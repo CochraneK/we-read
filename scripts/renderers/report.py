@@ -56,11 +56,19 @@ def evidence_text(item):
         return item
     if not isinstance(item, dict):
         return str(item)
-    return str(item.get("text") or item.get("title") or item.get("label") or item.get("summary") or item.get("source") or "")
+    return str(
+        item.get("text")
+        or item.get("title")
+        or item.get("label")
+        or item.get("summary")
+        or item.get("source")
+        or ""
+    )
 
 
 def period_from_context(context):
-    years = [str(x.get("year")) for x in ((context.get("reading") or {}).get("annual") or []) if x.get("year")]
+    annual = ((context.get("reading") or {}).get("annual") or [])
+    years = [str(x.get("year")) for x in annual if isinstance(x, dict) and x.get("year")]
     if not years:
         return "全部可用数据"
     return years[0] if len(years) == 1 else f"{years[0]}–{years[-1]}"
@@ -81,19 +89,24 @@ def deterministic_stats(context):
 
 def top_themes(reading_map, limit=8):
     nodes = [n for n in ((reading_map or {}).get("nodes") or []) if isinstance(n, dict)]
-    nodes.sort(key=lambda n: (float(n.get("weight") or 0), float(n.get("confidence") or 0)), reverse=True)
+    nodes.sort(
+        key=lambda n: (float(n.get("weight") or 0), float(n.get("confidence") or 0)),
+        reverse=True,
+    )
     out = []
     for node in nodes[:limit]:
         label = str(node.get("label") or "").strip()
         if not label:
             continue
-        out.append({
-            "label": label,
-            "summary": str(node.get("summary") or "").strip(),
-            "tier": str(node.get("tier") or ""),
-            "confidence": clamp(node.get("confidence")),
-            "evidenceCount": len(node.get("evidence") or []),
-        })
+        out.append(
+            {
+                "label": label,
+                "summary": str(node.get("summary") or "").strip(),
+                "tier": str(node.get("tier") or ""),
+                "confidence": clamp(node.get("confidence")),
+                "evidenceCount": len(node.get("evidence") or []),
+            }
+        )
     return out
 
 
@@ -102,13 +115,15 @@ def stages(cognitive_shift, limit=8):
     for item in ((cognitive_shift or {}).get("stages") or [])[:limit]:
         if not isinstance(item, dict):
             continue
-        out.append({
-            "label": str(item.get("label") or "阶段").strip(),
-            "period": f"{item.get('start') or '?'} → {item.get('end') or '?'}",
-            "summary": str(item.get("summary") or item.get("transition") or "").strip(),
-            "themes": [str(x) for x in (item.get("themes") or [])[:6]],
-            "confidence": clamp(item.get("confidence")),
-        })
+        out.append(
+            {
+                "label": str(item.get("label") or "阶段").strip(),
+                "period": f"{item.get('start') or '?'} → {item.get('end') or '?'}",
+                "summary": str(item.get("summary") or item.get("transition") or "").strip(),
+                "themes": [str(x) for x in (item.get("themes") or [])[:6]],
+                "confidence": clamp(item.get("confidence")),
+            }
+        )
     return out
 
 
@@ -133,13 +148,21 @@ def profile_summary(profile):
             continue
         label = str(item.get("label") or "").strip()
         summary = str(item.get("summary") or "").strip()
-        if label and summary:
-            items.append({
+        if not label or not summary:
+            continue
+        evidence = []
+        for raw in (item.get("evidence") or [])[:3]:
+            text = evidence_text(raw).strip()
+            if text:
+                evidence.append(text)
+        items.append(
+            {
                 "label": label,
                 "summary": summary,
                 "confidence": clamp(item.get("confidence")),
-                "evidence": [evidence_text(x) for x in (item.get("evidence") or [])[:3] if evidence_text(x)],
-            })
+                "evidence": evidence,
+            }
+        )
     return items
 
 
@@ -150,7 +173,11 @@ def build_model(context, narrative=None, reading_map=None, cognitive_shift=None,
         "title": str(narrative.get("title") or "我的微信读书阅读报告"),
         "subtitle": str(narrative.get("subtitle") or "从阅读行为到主题、认知与知识网络"),
         "period": str(narrative.get("period") or period_from_context(context)),
-        "summary": str(narrative.get("summary") or profile.get("summary") or "本报告把确定性阅读事实与解释型分析分开呈现；所有解释应回到书籍、划线、想法和时间证据核对。"),
+        "summary": str(
+            narrative.get("summary")
+            or profile.get("summary")
+            or "本报告把确定性阅读事实与解释型分析分开呈现；所有解释应回到书籍、划线、想法和时间证据核对。"
+        ),
         "stats": deterministic_stats(context),
         "highlights": list(narrative.get("highlights") or [])[:8],
         "takeaways": list(narrative.get("takeaways") or [])[:6],
@@ -164,47 +191,181 @@ def build_model(context, narrative=None, reading_map=None, cognitive_shift=None,
     }
 
 
+def render_highlights(items):
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        detail = ""
+        if item.get("detail"):
+            detail = "<p>" + escape(str(item.get("detail") or "")) + "</p>"
+        parts.append(
+            '<article class="mini"><b>{}</b><span>{}</span>{}</article>'.format(
+                escape(str(item.get("value", "—"))),
+                escape(str(item.get("label", ""))),
+                detail,
+            )
+        )
+    return "".join(parts)
+
+
+def render_themes(items):
+    if not items:
+        return '<p class="muted">尚未生成 Reading Map。</p>'
+    parts = []
+    for item in items:
+        parts.append(
+            '<article class="theme"><header><h3>{}</h3><span>{}%</span></header>'
+            '<p>{}</p><small>{} · 证据 {} 条</small></article>'.format(
+                escape(item["label"]),
+                round(item["confidence"] * 100),
+                escape(item["summary"] or "跨书主题"),
+                escape(item["tier"] or "theme"),
+                item["evidenceCount"],
+            )
+        )
+    return "".join(parts)
+
+
+def render_stages(items):
+    if not items:
+        return '<p class="muted">尚未生成 Cognitive Shift。</p>'
+    parts = []
+    for item in items:
+        chips = "".join("<span>{}</span>".format(escape(t)) for t in item["themes"])
+        parts.append(
+            '<article class="stage"><div class="dot"></div><small>{}</small><h3>{}</h3>'
+            '<p>{}</p><div class="chips">{}</div><em>置信度 {}%</em></article>'.format(
+                escape(item["period"]),
+                escape(item["label"]),
+                escape(item["summary"]),
+                chips,
+                round(item["confidence"] * 100),
+            )
+        )
+    return "".join(parts)
+
+
+def render_profile(items):
+    if not items:
+        return '<p class="muted">尚未生成 Reading Profile。</p>'
+    parts = []
+    for item in items:
+        evidence = ""
+        if item["evidence"]:
+            evidence = "<ul>" + "".join(
+                "<li>{}</li>".format(escape(text)) for text in item["evidence"]
+            ) + "</ul>"
+        parts.append(
+            '<article class="insight"><header><h3>{}</h3><span>{}%</span></header>'
+            '<p>{}</p>{}</article>'.format(
+                escape(item["label"]),
+                round(item["confidence"] * 100),
+                escape(item["summary"]),
+                evidence,
+            )
+        )
+    return "".join(parts)
+
+
+def render_takeaways(items):
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        confidence = ""
+        if item.get("confidence") is not None:
+            confidence = "<span>{}%</span>".format(round(clamp(item.get("confidence")) * 100))
+        parts.append(
+            '<article class="insight"><header><h3>{}</h3>{}</header><p>{}</p></article>'.format(
+                escape(str(item.get("title") or "洞察")),
+                confidence,
+                escape(str(item.get("summary") or "")),
+            )
+        )
+    return "".join(parts)
+
+
+def render_actions(items):
+    parts = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        reason = ""
+        if item.get("reason"):
+            reason = "<span>{}</span>".format(escape(str(item.get("reason") or "")))
+        parts.append(
+            "<li><b>{}</b>{}</li>".format(escape(str(item.get("title") or "")), reason)
+        )
+    return "".join(parts)
+
+
 def render_html(model, asset_links=None):
     asset_links = asset_links or {}
     stats_html = "".join(
-        f'<article class="stat"><b>{escape(value)}</b><span>{escape(label)}</span></article>'
+        '<article class="stat"><b>{}</b><span>{}</span></article>'.format(
+            escape(value), escape(label)
+        )
         for label, value in model["stats"]
     )
-    highlights = "".join(
-        f'<article class="mini"><b>{escape(str(x.get("value", "—")))}</b><span>{escape(str(x.get("label", "")))}</span>{f"<p>{escape(str(x.get("detail", "")))}</p>" if x.get("detail") else ""}</article>'
-        for x in model["highlights"] if isinstance(x, dict)
-    )
-    themes_html = "".join(
-        f'<article class="theme"><header><h3>{escape(x["label"])}</h3><span>{round(x["confidence"]*100)}%</span></header><p>{escape(x["summary"] or "跨书主题")}</p><small>{escape(x["tier"] or "theme")} · 证据 {x["evidenceCount"]} 条</small></article>'
-        for x in model["themes"]
-    ) or '<p class="muted">尚未生成 Reading Map。</p>'
-    stages_html = "".join(
-        f'<article class="stage"><div class="dot"></div><small>{escape(x["period"])}</small><h3>{escape(x["label"])}</h3><p>{escape(x["summary"])}</p><div class="chips">{"".join(f"<span>{escape(t)}</span>" for t in x["themes"])}</div><em>置信度 {round(x["confidence"]*100)}%</em></article>'
-        for x in model["stages"]
-    ) or '<p class="muted">尚未生成 Cognitive Shift。</p>'
-    graph = model["graph"]
-    type_text = " · ".join(f"{escape(k)} {v}" for k, v in sorted(graph["types"].items()))
-    focus_html = "".join(f'<span>{escape(x)}</span>' for x in graph["focus"])
-    profile_html = "".join(
-        f'<article class="insight"><header><h3>{escape(x["label"])}</h3><span>{round(x["confidence"]*100)}%</span></header><p>{escape(x["summary"])}</p>{"<ul>"+"".join(f"<li>{escape(e)}</li>" for e in x["evidence"])+"</ul>" if x["evidence"] else ""}</article>'
-        for x in model["profile"]
-    ) or '<p class="muted">尚未生成 Reading Profile。</p>'
-    takeaway_html = "".join(
-        f'<article class="insight"><header><h3>{escape(str(x.get("title") or "洞察"))}</h3>{f"<span>{round(clamp(x.get("confidence"))*100)}%</span>" if x.get("confidence") is not None else ""}</header><p>{escape(str(x.get("summary") or ""))}</p></article>'
-        for x in model["takeaways"] if isinstance(x, dict)
-    )
-    actions_html = "".join(
-        f'<li><b>{escape(str(x.get("title") or ""))}</b>{f"<span>{escape(str(x.get("reason") or ""))}</span>" if x.get("reason") else ""}</li>'
-        for x in model["nextActions"] if isinstance(x, dict)
-    )
-    links_html = "".join(
-        f'<a href="{escape(href)}">{escape(label)} ↗</a>' for label, href in asset_links.items()
-    )
-    excluded = int(model["coverage"].get("excludedPrivateBooks") or 0)
-    privacy_note = f"默认隐私策略已排除 {excluded} 本明确标记为私密的书。" if excluded else "当前上下文按默认隐私策略构建，未发现被排除的明确私密书。"
+    highlights_html = render_highlights(model["highlights"])
+    themes_html = render_themes(model["themes"])
+    stages_html = render_stages(model["stages"])
+    profile_html = render_profile(model["profile"])
+    takeaway_html = render_takeaways(model["takeaways"])
+    actions_html = render_actions(model["nextActions"])
 
-    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(model["title"])}</title><style>
-:root{{--bg:#F4F0E9;--panel:#FFFDF9;--text:#282421;--muted:#776E66;--line:#E3D9CC;--accent:#B86643;--soft:#EFE5D8}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--bg);color:var(--text);font-family:"Inter","PingFang SC","Microsoft YaHei",sans-serif}}main{{width:min(1160px,calc(100% - 28px));margin:auto;padding:52px 0 80px}}.hero{{padding:26px 0 18px;border-bottom:1px solid var(--line)}}.eyebrow{{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--accent)}}h1{{font-size:clamp(36px,6vw,68px);line-height:1.02;letter-spacing:-.055em;margin:10px 0 12px}}.subtitle{{font-size:18px;color:var(--muted)}}.summary{{max-width:850px;font-size:16px;line-height:1.8}}.period{{display:inline-block;margin-top:10px;padding:7px 10px;background:var(--soft);border-radius:999px;font-size:12px}}.stats,.highlights{{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:20px 0}}.stat,.mini,.theme,.insight,.graphbox{{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}}.stat b,.mini b{{display:block;font-size:20px}}.stat span,.mini span{{display:block;font-size:11px;color:var(--muted);margin-top:5px}}.mini p{{font-size:12px;line-height:1.55;color:var(--muted)}}section{{padding:28px 0;border-bottom:1px solid var(--line)}}.section-head{{display:flex;justify-content:space-between;gap:14px;align-items:end;margin-bottom:14px}}h2{{font-size:24px;margin:0}}.section-head p{{margin:0;color:var(--muted);font-size:12px}}.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}.theme header,.insight header{{display:flex;justify-content:space-between;gap:12px;align-items:center}}.theme h3,.insight h3,.stage h3{{margin:0;font-size:17px}}.theme header span,.insight header span{{color:var(--accent);font-weight:800}}.theme p,.insight p,.stage p{{line-height:1.65;color:#514A44}}.theme small,.stage small,.stage em{{font-size:11px;color:var(--muted);font-style:normal}}.timeline{{position:relative;padding-left:22px}}.timeline:before{{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--line)}}.stage{{position:relative;padding:4px 0 24px 14px}}.dot{{position:absolute;width:11px;height:11px;border-radius:50%;background:var(--accent);left:-21px;top:7px;box-shadow:0 0 0 5px var(--bg)}}.chips{{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}}.chips span,.focus span{{background:var(--soft);border-radius:999px;padding:6px 9px;font-size:11px}}.graphnum{{font-size:34px;font-weight:850}}.focus{{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}}.links{{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}}.links a{{color:var(--text);text-decoration:none;background:var(--panel);border:1px solid var(--line);padding:9px 12px;border-radius:999px;font-size:12px}}.actions{{margin:0;padding-left:0;list-style:none;display:grid;gap:8px}}.actions li{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}}.actions span{{display:block;color:var(--muted);font-size:12px;margin-top:4px}}.muted{{color:var(--muted)}}.notice{{margin-top:24px;border-left:3px solid var(--accent);background:var(--soft);padding:14px 16px;border-radius:0 14px 14px 0;font-size:12px;line-height:1.65}}@media(max-width:900px){{.stats,.highlights{{grid-template-columns:repeat(3,1fr)}}}}@media(max-width:680px){{main{{width:min(100% - 18px,1160px);padding-top:28px}}.stats,.highlights,.grid{{grid-template-columns:1fr 1fr}}.section-head{{align-items:start;flex-direction:column}}}}@media print{{body{{background:white}}main{{width:100%;padding:0}}.links{{display:none}}.stat,.mini,.theme,.insight,.graphbox{{break-inside:avoid}}}}</style></head><body><main><header class="hero"><div class="eyebrow">WEREAD INTELLIGENCE · UNIFIED REPORT</div><h1>{escape(model["title"])}</h1><div class="subtitle">{escape(model["subtitle"])}</div><div class="period">{escape(model["period"])}</div><p class="summary">{escape(model["summary"])}</p></header><div class="stats">{stats_html}</div>{f'<div class="highlights">{highlights}</div>' if highlights else ''}<section><div class="section-head"><h2>阅读版图</h2><p>跨书主题，而不是书架分类的简单复刻</p></div><div class="grid">{themes_html}</div></section><section><div class="section-head"><h2>认知变迁</h2><p>阶段由主题结构变化决定，不机械按年份切割</p></div><div class="timeline">{stages_html}</div></section><section><div class="section-head"><h2>知识网络</h2><p>Book → Theme → Concept → Quote / Review</p></div><div class="graphbox"><div class="graphnum">{graph["nodes"]} 节点 · {graph["edges"]} 关系</div><p class="muted">{type_text or '尚未生成 Knowledge Graph。'}</p><div class="focus">{focus_html}</div></div></section><section><div class="section-head"><h2>阅读画像</h2><p>解释型结论必须带置信度和证据</p></div><div class="grid">{profile_html}</div></section>{f'<section><div class="section-head"><h2>关键结论</h2><p>来自 reading_report.json 的编辑层</p></div><div class="grid">{takeaway_html}</div></section>' if takeaway_html else ''}{f'<section><div class="section-head"><h2>下一步</h2><p>行动建议不是事实指标</p></div><ol class="actions">{actions_html}</ol></section>' if actions_html else ''}{f'<div class="links">{links_html}</div>' if links_html else ''}<div class="notice">{escape(privacy_note)} 报告中的数值来自确定性数据层；主题、认知变化和画像属于解释层，不应被当作人格诊断或敏感属性推断。</div></main></body></html>'''
+    graph = model["graph"]
+    type_text = " · ".join(
+        "{} {}".format(escape(k), v) for k, v in sorted(graph["types"].items())
+    )
+    focus_html = "".join("<span>{}</span>".format(escape(x)) for x in graph["focus"])
+    links_html = "".join(
+        '<a href="{}">{} ↗</a>'.format(escape(href), escape(label))
+        for label, href in asset_links.items()
+    )
+
+    excluded = int(model["coverage"].get("excludedPrivateBooks") or 0)
+    if excluded:
+        privacy_note = f"默认隐私策略已排除 {excluded} 本明确标记为私密的书。"
+    else:
+        privacy_note = "当前上下文按默认隐私策略构建，未发现被排除的明确私密书。"
+
+    highlights_section = '<div class="highlights">{}</div>'.format(highlights_html) if highlights_html else ""
+    takeaways_section = ""
+    if takeaway_html:
+        takeaways_section = (
+            '<section><div class="section-head"><h2>关键结论</h2>'
+            '<p>来自 reading_report.json 的编辑层</p></div><div class="grid">{}</div></section>'
+        ).format(takeaway_html)
+    actions_section = ""
+    if actions_html:
+        actions_section = (
+            '<section><div class="section-head"><h2>下一步</h2>'
+            '<p>行动建议不是事实指标</p></div><ol class="actions">{}</ol></section>'
+        ).format(actions_html)
+    links_section = '<div class="links">{}</div>'.format(links_html) if links_html else ""
+
+    return '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><style>
+:root{{--bg:#F4F0E9;--panel:#FFFDF9;--text:#282421;--muted:#776E66;--line:#E3D9CC;--accent:#B86643;--soft:#EFE5D8}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--bg);color:var(--text);font-family:"Inter","PingFang SC","Microsoft YaHei",sans-serif}}main{{width:min(1160px,calc(100% - 28px));margin:auto;padding:52px 0 80px}}.hero{{padding:26px 0 18px;border-bottom:1px solid var(--line)}}.eyebrow{{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--accent)}}h1{{font-size:clamp(36px,6vw,68px);line-height:1.02;letter-spacing:-.055em;margin:10px 0 12px}}.subtitle{{font-size:18px;color:var(--muted)}}.summary{{max-width:850px;font-size:16px;line-height:1.8}}.period{{display:inline-block;margin-top:10px;padding:7px 10px;background:var(--soft);border-radius:999px;font-size:12px}}.stats,.highlights{{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:20px 0}}.stat,.mini,.theme,.insight,.graphbox{{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}}.stat b,.mini b{{display:block;font-size:20px}}.stat span,.mini span{{display:block;font-size:11px;color:var(--muted);margin-top:5px}}.mini p{{font-size:12px;line-height:1.55;color:var(--muted)}}section{{padding:28px 0;border-bottom:1px solid var(--line)}}.section-head{{display:flex;justify-content:space-between;gap:14px;align-items:end;margin-bottom:14px}}h2{{font-size:24px;margin:0}}.section-head p{{margin:0;color:var(--muted);font-size:12px}}.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}.theme header,.insight header{{display:flex;justify-content:space-between;gap:12px;align-items:center}}.theme h3,.insight h3,.stage h3{{margin:0;font-size:17px}}.theme header span,.insight header span{{color:var(--accent);font-weight:800}}.theme p,.insight p,.stage p{{line-height:1.65;color:#514A44}}.theme small,.stage small,.stage em{{font-size:11px;color:var(--muted);font-style:normal}}.timeline{{position:relative;padding-left:22px}}.timeline:before{{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--line)}}.stage{{position:relative;padding:4px 0 24px 14px}}.dot{{position:absolute;width:11px;height:11px;border-radius:50%;background:var(--accent);left:-21px;top:7px;box-shadow:0 0 0 5px var(--bg)}}.chips{{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}}.chips span,.focus span{{background:var(--soft);border-radius:999px;padding:6px 9px;font-size:11px}}.graphnum{{font-size:34px;font-weight:850}}.focus{{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}}.links{{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}}.links a{{color:var(--text);text-decoration:none;background:var(--panel);border:1px solid var(--line);padding:9px 12px;border-radius:999px;font-size:12px}}.actions{{margin:0;padding-left:0;list-style:none;display:grid;gap:8px}}.actions li{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}}.actions span{{display:block;color:var(--muted);font-size:12px;margin-top:4px}}.muted{{color:var(--muted)}}.notice{{margin-top:24px;border-left:3px solid var(--accent);background:var(--soft);padding:14px 16px;border-radius:0 14px 14px 0;font-size:12px;line-height:1.65}}@media(max-width:900px){{.stats,.highlights{{grid-template-columns:repeat(3,1fr)}}}}@media(max-width:680px){{main{{width:min(100% - 18px,1160px);padding-top:28px}}.stats,.highlights,.grid{{grid-template-columns:1fr 1fr}}.section-head{{align-items:start;flex-direction:column}}}}@media print{{body{{background:white}}main{{width:100%;padding:0}}.links{{display:none}}.stat,.mini,.theme,.insight,.graphbox{{break-inside:avoid}}}}</style></head><body><main><header class="hero"><div class="eyebrow">WEREAD INTELLIGENCE · UNIFIED REPORT</div><h1>{title}</h1><div class="subtitle">{subtitle}</div><div class="period">{period}</div><p class="summary">{summary}</p></header><div class="stats">{stats}</div>{highlights}<section><div class="section-head"><h2>阅读版图</h2><p>跨书主题，而不是书架分类的简单复刻</p></div><div class="grid">{themes}</div></section><section><div class="section-head"><h2>认知变迁</h2><p>阶段由主题结构变化决定，不机械按年份切割</p></div><div class="timeline">{stages}</div></section><section><div class="section-head"><h2>知识网络</h2><p>Book → Theme → Concept → Quote / Review</p></div><div class="graphbox"><div class="graphnum">{nodes} 节点 · {edges} 关系</div><p class="muted">{types}</p><div class="focus">{focus}</div></div></section><section><div class="section-head"><h2>阅读画像</h2><p>解释型结论必须带置信度和证据</p></div><div class="grid">{profile}</div></section>{takeaways}{actions}{links}<div class="notice">{privacy} 报告中的数值来自确定性数据层；主题、认知变化和画像属于解释层，不应被当作人格诊断或敏感属性推断。</div></main></body></html>'''.format(
+        title=escape(model["title"]),
+        subtitle=escape(model["subtitle"]),
+        period=escape(model["period"]),
+        summary=escape(model["summary"]),
+        stats=stats_html,
+        highlights=highlights_section,
+        themes=themes_html,
+        stages=stages_html,
+        nodes=graph["nodes"],
+        edges=graph["edges"],
+        types=type_text or "尚未生成 Knowledge Graph。",
+        focus=focus_html,
+        profile=profile_html,
+        takeaways=takeaways_section,
+        actions=actions_section,
+        links=links_section,
+        privacy=escape(privacy_note),
+    )
 
 
 def parse_args():
@@ -222,7 +383,9 @@ def parse_args():
 def main():
     args = parse_args()
     if not args.context.exists():
-        raise SystemExit(f"ERROR: missing {args.context}; run scripts/build_visualization_context.py first")
+        raise SystemExit(
+            f"ERROR: missing {args.context}; run scripts/build_visualization_context.py first"
+        )
     context = load_json(args.context, {})
     narrative = load_json(args.narrative, {})
     reading_map = load_json(args.reading_map, {})
