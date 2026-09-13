@@ -2,7 +2,7 @@
 
 把微信读书从「读过什么」变成「我在关注什么、认知如何变化，以及读过的知识现在能为我做什么」。
 
-本仓库围绕微信读书 Agent Gateway 构建一套**本地优先**的导出、分析、检索、可视化与知识复用工具链。
+本仓库围绕微信读书 Agent Gateway 构建一套**本地优先**的导出、分析、检索、可视化、回顾与知识复用工具链。
 
 ## 当前能力
 
@@ -17,6 +17,7 @@
 - Unified Reading Report 单页总览 renderer
 - 隐私感知的统一可视化上下文
 - SQLite 本地全文检索（书名 / 作者 / 章节 / 划线 / 想法）
+- Reading Recall / Feynman 主动回顾队列与卡片
 - 翻转金句卡片
 - 顾问型阅读工作流
 - 高阶解释型可视化 Skill
@@ -41,6 +42,9 @@ WeRead Agent Gateway
         ├─ scripts/build_search_index.py
         │      └─ normalized facts → local SQLite search index
         │
+        ├─ scripts/build_recall_queue.py
+        │      └─ old evidence → deterministic recall queue
+        │
         ├─ AI / Skill 解释层
         │      ├─ reading_map.json
         │      ├─ knowledge_graph.json
@@ -53,7 +57,8 @@ WeRead Agent Gateway
                ├─ network.py
                ├─ timeline.py
                ├─ profile.py
-               └─ report.py
+               ├─ report.py
+               └─ recall.py
 ```
 
 ## 快速开始
@@ -177,7 +182,31 @@ python scripts/build_search_index.py --query "自由" --kind review
 
 索引直接消费 `visualization_context.json`，因此默认继承私密书排除策略。
 
-### 7. 金句库
+### 7. Reading Recall / Feynman
+
+建立确定性回顾队列：
+
+```bash
+python scripts/build_recall_queue.py
+```
+
+默认只选至少 30 天前的材料、更久未回顾的优先，并限制每本书最多 2 条；个人想法 `review` 在同龄证据中优先于普通划线。
+
+可调整：
+
+```bash
+python scripts/build_recall_queue.py --min-age-days 90 --limit 10 --max-per-book 1
+```
+
+生成“先回答、再展开原始证据”的回顾卡：
+
+```bash
+python scripts/renderers/recall.py
+```
+
+输出：`data/analysis/reading_recall.html`
+
+### 8. 金句库
 
 ```bash
 python scripts/build_quote_lib.py
@@ -227,6 +256,15 @@ python scripts/build_quote_lib.py
 - FTS5 + CJK substring fallback
 
 Search 只负责找证据，不把命中结果自动包装成人格或认知结论。
+
+### `weread-recall`
+
+主动回忆与 Feynman 工作流：
+
+- `recall`：用自己的话解释旧划线
+- `feynman`：像给没读过这本书的人重新讲一遍
+- `contrast`：用 Search 找跨书观点，比较冲突或变化
+- `review` 证据可以追问“现在还认同吗”；`mark` 只表示曾关注，不能自动视为用户观点
 
 ## 可视化原则
 
@@ -288,6 +326,7 @@ GitHub Actions 同时在 Python 3.11 与 3.13 上运行测试。当前覆盖：
 - Reading Profile 事实 / 解释分层与置信度约束
 - Unified Report 合并、缺失组件降级与隐私提示
 - 本地全文搜索与中文 substring fallback
+- Recall 队列的时间阈值、跨书多样性与原始证据延迟展示
 - 金句库去重、打分和版权警告
 - 类别参与度 union-by-bookId，防止重复计数
 
@@ -306,8 +345,8 @@ GitHub Actions 同时在 Python 3.11 与 3.13 上运行测试。当前覆盖：
 5. ✅ Reading Profile renderer
 6. ✅ Unified Reading Report
 7. ✅ Local Search / Evidence Recall
-8. Legacy `analysis.py` 模块化迁移
-9. Reading Recall / Feynman
+8. ✅ Reading Recall / Feynman
+9. Legacy `analysis.py` 模块化迁移
 10. Obsidian Incremental Sync
 11. Blindspot / Counter Reading
 12. Booklist / Shelf Organizer / Book → Skill
