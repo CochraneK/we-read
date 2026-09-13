@@ -25,9 +25,7 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 - `data/weread_bookinfo.json`
 - `quote_lib/金句库.json`
 
-只有本地数据缺失或过期时，才调用底层微信读书 Skill / Agent Gateway。
-
-不得为了一个可视化重复拉取已经存在的数据。
+只有本地数据缺失或过期时，才调用底层微信读书 Skill / Agent Gateway。不得为了一个可视化重复拉取已经存在的数据。
 
 ## 标准入口
 
@@ -37,13 +35,7 @@ description: 微信读书高阶可视化与认知分析 Skill。基于现有导�
 python scripts/build_visualization_context.py
 ```
 
-得到：
-
-```text
-data/analysis/visualization_context.json
-```
-
-默认排除 `secret=1` 的书。只有用户明确要求在**本地私密分析**中包含私密书时，才允许：
+得到 `data/analysis/visualization_context.json`。默认排除 `secret=1` 的书。只有用户明确要求在**本地私密分析**中包含私密书时，才允许：
 
 ```bash
 python scripts/build_visualization_context.py --include-private
@@ -61,23 +53,15 @@ python scripts/build_visualization_context.py --include-private
 
 用每日阅读时长生成 GitHub contribution 风格热力图。数据来自年度 `dailyReadTimes`，不使用 AI 推断。
 
-直接运行：
-
 ```bash
 python scripts/renderers/heatmap.py
 ```
 
-输出：
-
-```text
-data/analysis/reading_heatmap.html
-```
+输出 `data/analysis/reading_heatmap.html`。
 
 ### reading-map
 
 回答“我长期到底在关注什么”。
-
-步骤：
 
 1. 读取 `data/analysis/visualization_context.json`
 2. 按 `references/visualization-spec.md` 的证据规则提炼跨书主题
@@ -89,38 +73,29 @@ data/analysis/reading_heatmap.html
 python scripts/renderers/network.py --kind reading-map
 ```
 
-输出：
+输出 `data/analysis/reading_map.html`。
 
-```text
-data/analysis/reading_map.html
-```
-
-主题节点必须包含：
-
-- `id`
-- `label`
-- `weight`
-- `tier`: `core | secondary | peripheral`
-- `confidence`
-- `evidence`
-- 可选 `counterEvidence`
-
-边必须有真实关联依据，禁止为了图好看而连接。
+主题节点必须包含 `id`、`label`、`weight`、`tier`、`confidence`、`evidence`，可选 `counterEvidence`。`tier` 只能是 `core | secondary | peripheral`。边必须有真实关联依据，禁止为了图好看而连接。
 
 ### cognitive-shift
 
-按时间阶段呈现兴趣与认知转向。
+回答“我的阅读兴趣和思考方式是怎么变过来的”。
 
-每个阶段必须有：
+1. 读取 `visualization_context.json` 中的年度统计、书籍、笔记时间戳和阅读证据
+2. 优先按**主题结构变化**识别阶段，不按自然年机械切割
+3. 连续年份主题结构近似时合并为同一阶段
+4. 每个阶段保留时间范围、主导主题、代表书籍、代表证据、转向依据和置信度
+5. 生成符合 `schemas/cognitive_shift.schema.json` 的 JSON
+6. 写入 `data/analysis/cognitive_shift.json`
+7. 运行：
 
-- 时间范围
-- 主导主题
-- 代表书籍
-- 代表划线或想法
-- 转向依据
-- 置信度
+```bash
+python scripts/renderers/timeline.py
+```
 
-优先按年度数据 + 笔记时间戳划分阶段，不按固定年份强切。如果多个连续年份主题结构基本一致，应合并阶段。
+输出 `data/analysis/cognitive_shift.html`。
+
+阶段不是人格诊断。证据无法支撑明确“转向”时，应写成“延续/轻微变化”并降低 `confidence`，不得为了故事性强行制造转折。
 
 ### knowledge-graph
 
@@ -129,8 +104,6 @@ data/analysis/reading_map.html
 ```text
 Book → Theme → Concept → Quote / Review
 ```
-
-步骤：
 
 1. 读取 `visualization_context.json`
 2. 先找跨书重复概念，再聚合主题
@@ -142,52 +115,17 @@ Book → Theme → Concept → Quote / Review
 python scripts/renderers/network.py --kind knowledge-graph
 ```
 
-输出：
+输出 `data/analysis/knowledge_graph.html`。
 
-```text
-data/analysis/knowledge_graph.html
-```
-
-节点类型限制为：
-
-- `book`
-- `theme`
-- `concept`
-- `quote`
-- `review`
-
-边类型限制为：
-
-- `contains`
-- `supports`
-- `contrasts`
-- `related`
-
-主题优先来自跨书重复概念，而不是简单把微信读书 `category` 当成主题。
+节点类型限制为 `book | theme | concept | quote | review`；边类型限制为 `contains | supports | contrasts | related`。主题优先来自跨书重复概念，而不是简单把微信读书 `category` 当成主题。
 
 ### profile
 
-生成阅读画像，但禁止把弱证据包装成确定人格诊断。画像表述应优先使用：
-
-- “数据显示……”
-- “可能反映……”
-- “从这些阅读行为看……”
-
-而不是“你就是……”。
+生成阅读画像，但禁止把弱证据包装成确定人格诊断。画像表述应优先使用“数据显示……”“可能反映……”“从这些阅读行为看……”，而不是“你就是……”。
 
 ### report
 
-组合现有统计图和解释型结果形成周/月/年报告。
-
-报告应优先复用：
-
-- `reading_dashboard.html` 中的确定性统计
-- `reading_heatmap.html`
-- Reading Map
-- Cognitive Shift
-- Knowledge Graph 的关键洞察
-
-不要重新计算一套与现有指标口径不同的数据。
+组合现有统计图和解释型结果形成周/月/年报告。优先复用 `reading_dashboard.html`、`reading_heatmap.html`、Reading Map、Cognitive Shift、Knowledge Graph 的关键洞察，不重新计算一套口径不同的指标。
 
 ## 强制分析规则
 
