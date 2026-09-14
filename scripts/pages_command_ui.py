@@ -6,6 +6,8 @@ The palette searches only already-published chapter labels and bookshelf metadat
 It performs no network requests and never indexes raw marks/reviews.
 """
 
+import pages_queue_io_ui
+
 CSS = r'''
 .command-trigger{display:inline-flex;align-items:center;gap:5px}.command-trigger kbd{font:inherit;font-size:9px;border:1px solid color-mix(in srgb,var(--line) 75%,transparent);border-bottom-width:2px;border-radius:5px;padding:1px 4px}.command-backdrop{position:fixed;inset:0;background:rgba(20,18,15,.38);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:300;display:grid;place-items:start center;padding:10vh 16px 24px}.command-backdrop[hidden]{display:none}.command-panel{width:min(680px,100%);max-height:min(72vh,720px);display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:0 24px 80px rgba(20,16,12,.22);overflow:hidden}.command-input-wrap{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}.command-icon{color:var(--muted);font-size:17px}.command-input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:16px}.command-hint{font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 5px}.command-results{overflow:auto;padding:8px}.command-group{padding:7px 9px 4px;color:var(--muted);font-size:9px;letter-spacing:.1em;text-transform:uppercase}.command-row{width:100%;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;border:0;background:transparent;color:var(--ink);text-align:left;padding:9px 10px;border-radius:12px;font:inherit;cursor:pointer}.command-row:hover,.command-row.active{background:color-mix(in srgb,var(--accent2) 10%,var(--line))}.command-symbol{width:30px;height:30px;border:1px solid var(--line);border-radius:9px;display:grid;place-items:center;color:var(--muted);font-size:11px}.command-main{min-width:0}.command-main b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.command-main small{display:block;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}.command-kind{color:var(--muted);font-size:9px}.command-empty{padding:32px 16px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:560px){.command-backdrop{padding:6vh 10px 14px}.command-panel{border-radius:18px;max-height:82vh}.command-input-wrap{padding:12px}.command-input{font-size:16px}.command-kind{display:none}}
@@ -53,4 +55,4 @@ JS = r'''
 def enhance(template: str) -> str:
     template = template.replace('</style>', CSS + '\n</style>', 1)
     template = template.replace('</script>', JS + '\n</script>', 1)
-    return template
+    return pages_queue_io_ui.enhance(template)
