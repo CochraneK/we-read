@@ -20,6 +20,7 @@ def load_module(name, path):
 
 story = load_module("weread_pages_story_ui", SCRIPTS / "pages_story_ui.py")
 enrich = load_module("weread_pages_enrich_site", SCRIPTS / "pages_enrich_site.py")
+experience = load_module("weread_pages_experience_ui", SCRIPTS / "pages_experience_ui.py")
 
 
 class PagesUiCompositionTests(unittest.TestCase):
@@ -40,6 +41,32 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("drawClock", enrich.JS)
         self.assertIn("renderShelf", enrich.JS)
         self.assertIn("optionalSection", enrich.JS)
+
+    def test_experience_layer_keeps_archive_chapters_and_controls(self):
+        for chapter in (
+            "chapter-life",
+            "chapter-rhythm",
+            "chapter-investment",
+            "chapter-knowledge",
+            "chapter-reflection",
+            "chapter-shelf",
+            "chapter-boundary",
+        ):
+            self.assertIn(chapter, experience.JS)
+        self.assertIn("focus-mode", experience.CSS)
+        self.assertIn("focusToggle", experience.JS)
+        self.assertIn("shelfQuery", experience.JS)
+        self.assertIn("e.key==='/'", experience.JS)
+        self.assertIn("IntersectionObserver", experience.JS)
+        self.assertIn("reading-progress", experience.CSS)
+
+    def test_experience_enhancer_injects_css_and_js(self):
+        base = "<html><head><style>BASE</style></head><body><script>BASEJS</script></body></html>"
+        out = experience.enhance(base)
+        self.assertIn("chapter-heading", out)
+        self.assertIn("wereadArchiveFocus", out)
+        self.assertLess(out.index("BASE"), out.index("chapter-heading"))
+        self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
 
 
 if __name__ == "__main__":
