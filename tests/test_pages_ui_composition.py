@@ -22,6 +22,7 @@ story = load_module("weread_pages_story_ui", SCRIPTS / "pages_story_ui.py")
 enrich = load_module("weread_pages_enrich_site", SCRIPTS / "pages_enrich_site.py")
 experience = load_module("weread_pages_experience_ui", SCRIPTS / "pages_experience_ui.py")
 command = load_module("weread_pages_command_ui", SCRIPTS / "pages_command_ui.py")
+queue_io = load_module("weread_pages_queue_io_ui", SCRIPTS / "pages_queue_io_ui.py")
 
 
 class PagesUiCompositionTests(unittest.TestCase):
@@ -106,7 +107,22 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertNotIn("markText", command.JS)
         self.assertNotIn("reviewText", command.JS)
 
-    def test_experience_and_command_enhancers_inject_css_and_js(self):
+    def test_pin_queue_transfer_exports_metadata_and_whitelists_imports(self):
+        self.assertIn("we-read-local-pins", queue_io.JS)
+        self.assertIn("bookId", queue_io.JS)
+        self.assertIn("title", queue_io.JS)
+        self.assertIn("author", queue_io.JS)
+        self.assertIn("category", queue_io.JS)
+        self.assertIn("byId.has(id)", queue_io.JS)
+        self.assertIn("new Blob", queue_io.JS)
+        self.assertIn("location.reload()", queue_io.JS)
+        self.assertIn("导入并合并", queue_io.JS)
+        self.assertNotIn("fetch(", queue_io.JS)
+        self.assertNotIn("marks", queue_io.JS)
+        self.assertNotIn("reviews", queue_io.JS)
+        self.assertNotIn("/shelf/", queue_io.JS)
+
+    def test_experience_command_and_queue_enhancers_inject_css_and_js(self):
         base = "<html><head><style>BASE</style></head><body><script>BASEJS</script></body></html>"
         out = experience.enhance(base)
         out = command.enhance(out)
@@ -117,9 +133,12 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("daily-recall", out)
         self.assertIn("command-backdrop", out)
         self.assertIn("archiveCommand", out)
+        self.assertIn("shelf-local-actions", out)
+        self.assertIn("we-read-local-pins", out)
         self.assertLess(out.index("BASE"), out.index("chapter-heading"))
         self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
         self.assertLess(out.index("wereadArchiveFocus"), out.index("archiveCommand"))
+        self.assertLess(out.index("archiveCommand"), out.index("we-read-local-pins"))
 
 
 if __name__ == "__main__":
