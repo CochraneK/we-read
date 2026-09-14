@@ -7,7 +7,8 @@ This layer changes presentation only:
 - pairs them with nearby chapter modules so they do not sit alone on a row;
 - removes empty official-preference placeholders and empty cover blocks;
 - shortens display-only trailing edition/adaptation parentheticals in Reading Top;
-- compacts the 24h-clock Top 3 activity display.
+- compacts the 24h-clock Top 3 activity display;
+- keeps quote action buttons visually consistent while coloring only dice glyphs.
 """
 from __future__ import annotations
 
@@ -59,6 +60,10 @@ JS = r'''
 
   const peak=document.getElementById('clockPeak');
   if(peak){const cards=[...peak.querySelectorAll('.deep-card')];if(cards.length){peak.classList.add('clock-peak-list');cards.forEach((card,i)=>{const time=card.querySelector('b')?.textContent?.trim()||'—',hours=card.querySelector('p')?.textContent?.trim()||'';card.innerHTML=`<span class="clock-peak-rank">${i+1}</span><b>${time}</b><p>${hours}</p>`})}}
+
+  const randomDice=document.querySelector('#publicQuoteRandom .dice'),resampleDice=document.querySelector('#publicQuoteResample .dice');
+  if(randomDice)randomDice.textContent='⚄';
+  if(resampleDice)resampleDice.textContent='⚅';
 })();
 '''
 
@@ -73,7 +78,7 @@ def polish(site_dir: Path = SITE) -> None:
         page = page.replace("</style>", CSS + "\n</style>", 1)
         page = page.replace("</script>", JS + "\n</script>", 1)
         path.write_text(page, encoding="utf-8")
-    print("Pages polish: chapter-local annual views, clean preference cards, short top titles, compact clock peaks")
+    print("Pages polish: chapter-local annual views, clean preference cards, short top titles, compact clock peaks, dice-only color")
 
 
 if __name__ == "__main__":
