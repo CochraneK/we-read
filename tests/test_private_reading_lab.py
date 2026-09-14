@@ -75,13 +75,16 @@ class PrivateReadingLabTests(unittest.TestCase):
             captured = []
             with mock.patch.object(lab, "run_step", side_effect=lambda args: captured.append(args)):
                 lab.render_dashboard(out)
-        self.assertEqual(len(captured), 1)
-        cmd = captured[0]
-        self.assertIn("scripts/renderers/private_lab_final.py", cmd)
-        self.assertIn(str(out / "visualization_context.json"), cmd)
-        self.assertIn(str(out / "deep_notes_context.json"), cmd)
-        self.assertIn(str(out / "recall_queue.json"), cmd)
-        self.assertIn(str(out / "index.html"), cmd)
+        self.assertEqual(len(captured), 2)
+        render_cmd, validate_cmd = captured
+        self.assertIn("scripts/renderers/private_lab_final.py", render_cmd)
+        self.assertIn(str(out / "visualization_context.json"), render_cmd)
+        self.assertIn(str(out / "deep_notes_context.json"), render_cmd)
+        self.assertIn(str(out / "recall_queue.json"), render_cmd)
+        self.assertIn(str(out / "index.html"), render_cmd)
+        self.assertEqual(validate_cmd[0], "scripts/validate_private_lab_output.py")
+        self.assertIn("--html", validate_cmd)
+        self.assertIn(str(out / "index.html"), validate_cmd)
 
 
 if __name__ == "__main__":
