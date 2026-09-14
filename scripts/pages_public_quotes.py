@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Publish a bounded rotating sample of short WeRead highlight excerpts.
 
-All eligible marks may enter the build-time candidate pool, but the public static
+Every non-empty mark enters the build-time candidate pool, but the public static
 artifact contains only a small attributed sample. This distinction matters:
 GitHub Pages must not ship the complete raw highlight corpus merely to hide most
 of it in client-side JavaScript.
@@ -10,7 +10,7 @@ of it in client-side JavaScript.
 Privacy authorization and copyright/distribution boundaries are separate:
 
 - marks/highlights only; user reviews are never published here;
-- every eligible mark can be sampled, but at most one excerpt per book per build;
+- every non-empty mark can be sampled, but at most one excerpt per book per build;
 - a hard character cap per excerpt;
 - a hard total-card cap;
 - bibliographic attribution and a WeRead deep link;
@@ -39,7 +39,6 @@ SITE = ROOT / "site"
 MAX_CHARS = 90
 MAX_TOTAL = 48
 MAX_PER_BOOK = 1
-MIN_CHARS = 12
 
 
 def env_true(name: str, default: bool = False) -> bool:
@@ -104,7 +103,6 @@ def build_public_quotes(
     secret_ids = {book_id(b) for b in shelf_books if book_id(b) and int(b.get("secret") or 0) == 1}
 
     candidates = []
-    seen_text = set()
     for note_book in notes if isinstance(notes, list) else []:
         if not isinstance(note_book, dict):
             continue
@@ -118,9 +116,8 @@ def build_public_quotes(
             if not isinstance(mark, dict):
                 continue
             raw = clean_text(mark.get("text"))
-            if len(raw) < MIN_CHARS or raw in seen_text:
+            if not raw:
                 continue
-            seen_text.add(raw)
             chapter = clean_text(mark.get("chapter"))
             excerpt, truncated = excerpt_text(raw, max_chars=max_chars)
             candidates.append({
@@ -157,14 +154,14 @@ def build_public_quotes(
             "source": "marks_only",
             "reviewsPublished": False,
             "fullRawPublished": False,
-            "allEligibleMarksMayBeSampled": True,
+            "allNonEmptyMarksMayBeSampled": True,
             "candidateCount": len(candidates),
             "sampleSeed": chosen_seed,
             "maxCharsPerExcerpt": int(max_chars),
             "maxPerBook": MAX_PER_BOOK,
             "maxTotal": int(max_total),
             "includePrivateBooks": bool(include_private),
-            "note": "All eligible marks may enter the build-time pool; only a bounded short attributed sample is shipped in each public artifact.",
+            "note": "Every non-empty mark enters the build-time pool; only a bounded short attributed sample is shipped in each public artifact.",
         },
         "count": len(items),
         "items": items,
@@ -189,7 +186,7 @@ def render_section(payload: dict) -> str:
         '<article class="card wide" id="public-quotes">'
         '<div class="title"><div><div class="section-kicker">Rotating public excerpts</div><h2>我的划线 · 随机轮播</h2></div>'
         f'<small>{candidates:,} 条候选 → 本轮 {len(items)} 条</small></div>'
-        '<p class="public-quote-policy">所有符合条件的 mark 都进入构建时候选池，但公开 artifact 只包含本轮抽中的短摘录；不会把完整划线库发送到浏览器。页面内每 7 秒随机轮播，可暂停或手动切换。review 仍不公开。</p>'
+        '<p class="public-quote-policy">所有非空 mark 都进入构建时候选池，但公开 artifact 只包含本轮抽中的短摘录；不会把完整划线库发送到浏览器。页面内每 7 秒随机轮播，可暂停或手动切换。review 仍不公开。</p>'
         f'<div class="public-quote-stage" id="publicQuotePlayer" data-quotes="{encoded}"><div class="public-quote-slide" id="publicQuoteSlide"></div></div>'
         '<div class="public-quote-controls"><button type="button" id="publicQuotePrev">上一条</button><button type="button" id="publicQuoteToggle" aria-pressed="false">暂停</button><span class="public-quote-counter" id="publicQuoteCounter"></span><button type="button" id="publicQuoteNext">下一条</button></div>'
         '</article>'
