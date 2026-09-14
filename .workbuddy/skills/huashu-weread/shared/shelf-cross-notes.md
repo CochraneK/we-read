@@ -1,145 +1,125 @@
-# 书架 + 笔记交叉分析（实用脚本）
+# 书架 + 笔记交叉分析
 
-把 `/shelf/sync` 和 `/user/notebooks` 两份数据合并后做筛选的代码模板。
+这份文档描述 `huashu-weread` 的底层交叉分析方法。项目已有确定性实现时，**优先使用脚本输出，不要每个 workflow 临时重写一份 join 逻辑**。
 
-## 完整模板
+## 首选：统一事实层
+
+```bash
+python scripts/build_visualization_context.py
+python scripts/build_advisor_context.py
+```
+
+`visualization_context.json` 明确保留：
+
+- `inShelf`
+- `inNotebook`
+- `shelfReadUpdateTime`
+- progress / reading time
+- note / mark / review counts
+
+`advisor_context.json` 再派生：
+
+- 深读 / 中读 / 轻读 / 浅尝 / 无笔记；
+- 不在书架但有深读证据的书；
+- 在书架但尚未形成笔记证据的书；
+- 最近 7 / 30 天活动；
+- 类别 engagement rate。
+
+这样 Advisor / Path / Review 可以消费同一套事实，而不是不同脚本各算一套口径。
+
+## 如果必须直接调用 Gateway
+
+版本号必须来自**官方 weread skill 的权威 frontmatter**。不要从旧 prompt、示例或本文件硬编码版本。
+
+本仓库当前 API 脚本基线是 `1.0.4`，但它未来仍可能变化；若本机找不到官方 Skill 版本，应明确失败或让调用方提供版本，而不是静默回退到一个可能过期的常量。
 
 ```python
-import json, subprocess, datetime, os
+import json, os, pathlib, re, subprocess
 
 API_KEY = os.environ["WEREAD_API_KEY"]
 GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
 
-# VERSION 的权威来源是 ~/.claude/skills/weread/SKILL.md 顶部 frontmatter 的 version 字段。
-# 这里的字面值可能滞后于真实最新值——执行前应该 grep 一下 weread/SKILL.md 确认。
-# 别从用户 prompt 里抄版本号（A/B 测试发现 prompt 里的 version 经常是过时的）。
-import re, pathlib
-def _read_version():
-    try:
-        text = pathlib.Path(os.path.expanduser("~/.claude/skills/weread/SKILL.md")).read_text()
-        m = re.search(r"^version:\s*([\d.]+)", text, re.M)
-        if m: return m.group(1)
-    except Exception:
-        pass
-    return "1.0.3"  # fallback，不一定最新
-VERSION = _read_version()
+
+def read_version():
+    candidates = [
+        pathlib.Path(os.path.expanduser("~/.claude/skills/weread/SKILL.md")),
+    ]
+    for path in candidates:
+        try:
+            text = path.read_text(encoding="utf-8")
+            match = re.search(r"^version:\s*([\d.]+)", text, re.M)
+            if match:
+                return match.group(1)
+        except OSError:
+            pass
+    raise RuntimeError("未找到官方 weread skill version；不要使用硬编码旧版本")
+
 
 def call(api_name, **params):
-    body = {"api_name": api_name, "skill_version": VERSION, **params}
-    r = subprocess.run(
-        ["curl", "-s", "-X", "POST", GATEWAY,
-         "-H", f"Authorization: Bearer {API_KEY}",
-         "-H", "Content-Type: application/json",
-         "-d", json.dumps(body)],
-        capture_output=True, text=True
+    body = {"api_name": api_name, "skill_version": read_version(), **params}
+    result = subprocess.run(
+        [
+            "curl", "-s", "-X", "POST", GATEWAY,
+            "-H", f"Authorization: Bearer {API_KEY}",
+            "-H", "Content-Type: application/json",
+            "-d", json.dumps(body, ensure_ascii=False),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
-    return json.loads(r.stdout)
-
-# 拿两份数据
-shelf = call("/shelf/sync")
-notebooks = call("/user/notebooks", count=200)
-
-# 建索引
-shelf_books = {str(b["bookId"]): b for b in shelf.get("books", [])}
-notebook_map = {str(b["book"]["bookId"]): b for b in notebooks.get("books", [])}
-
-# 四种集合
-read_deep = []         # 笔记 >= 10：吃透了
-read_medium = []       # 笔记 3-10：认真读了
-read_light = []        # 笔记 1-3：翻了一下
-shelved_unread = []    # 书架有但 notebook 无：放着没动
-
-for bid, book in shelf_books.items():
-    nb = notebook_map.get(bid)
-    note_count = nb.get("noteCount", 0) if nb else 0
-    if note_count >= 10:
-        read_deep.append((book, nb))
-    elif note_count >= 3:
-        read_medium.append((book, nb))
-    elif note_count > 0:
-        read_light.append((book, nb))
-    else:
-        shelved_unread.append(book)
-
-# 隐藏深读：notebook 有但 shelf 没有（借阅/试读但深读）
-hidden_deep = [
-    nb for bid, nb in notebook_map.items()
-    if bid not in shelf_books and nb.get("noteCount", 0) >= 10
-]
-
-# 最近活跃书（按 readUpdateTime 倒序）
-recent = sorted(
-    [b for b in shelf.get("books", []) if b.get("readUpdateTime", 0) > 0],
-    key=lambda b: b["readUpdateTime"], reverse=True
-)[:10]
+    payload = json.loads(result.stdout)
+    if payload.get("upgrade_info"):
+        raise RuntimeError(f"weread skill 需要升级: {payload['upgrade_info']}")
+    if payload.get("errcode", 0) != 0:
+        raise RuntimeError(payload.get("errmsg") or f"errcode={payload.get('errcode')}")
+    return payload
 ```
 
-## 按主题筛选
+## 核心集合
 
-调用 `filter_by_topic(books, keywords)`：
+直接 join `/shelf/sync` 与 `/user/notebooks` 时，至少保留这些集合：
 
-```python
-def filter_by_topic(books, keywords):
-    """books 是 (book, notebook) 元组列表或 book 列表"""
-    result = []
-    for item in books:
-        b = item[0] if isinstance(item, tuple) else item
-        title = b.get("title", "")
-        if any(k in title for k in keywords):
-            result.append(item)
-    return result
+```text
+shelf ∩ notebook       → 书架内且形成笔记证据
+shelf - notebook       → 收藏/兴趣，但不能称作“读过”
+notebook - shelf       → 隐藏阅读证据，借阅/试读等来源可能被书架视角漏掉
+recent activity        → 当前兴趣的次级信号
 ```
 
-## 常用主题关键词组
+笔记深度只是一种行为证据，不是“掌握程度”的心理测量。当前 Advisor Context 使用互斥分档：
 
-照搬即可。需要扩充时优先加中文同义词。
-
-```python
-TOPIC_KEYWORDS = {
-    "神经科学": ["脑", "意识", "神经", "心智", "认知", "记忆", "思维", "情绪"],
-    "投资": ["投资", "估值", "价值", "巴菲特", "芒格", "段永平", "证券", "股票", "财务"],
-    "心理学": ["心理", "行为", "情绪", "动机", "性格", "认知"],
-    "哲学": ["哲学", "存在", "形而上", "伦理", "尼采", "海德格尔", "维特根斯坦"],
-    "经济学": ["经济", "市场", "货币", "通胀", "凯恩斯", "哈耶克", "弗里德曼"],
-    "AI": ["AI", "人工智能", "机器学习", "深度学习", "大模型", "智能"],
-    "创业": ["创业", "增长", "产品", "MVP", "PMF", "0到1"],
-    "历史": ["历史", "通史", "断代", "近代", "古代", "战争"],
-    "文学": ["小说", "诗", "散文", "短篇", "长篇"],
-    "推理": ["推理", "悬疑", "凶杀", "侦探", "罪案", "黑色"],
-    "佛学": ["佛", "禅", "冥想", "正念", "般若", "金刚经"],
-    "科普": ["科学", "宇宙", "物理", "生物", "化学", "数学"],
-}
+```text
+20+   deep
+10–19 medium
+3–9   light
+1–2   glance
+0     none
 ```
 
-## 输出已读书目（带笔记深度标签）
+## 主题筛选
 
-```python
-def render_books_in_topic(topic, books_with_notes):
-    print(f"### {topic}已读 ({len(books_with_notes)} 本)\n")
-    for book, nb in sorted(books_with_notes, key=lambda x: -(x[1].get("noteCount",0) if x[1] else 0)):
-        title = book.get("title", "?")
-        author = book.get("author", "?")
-        note_count = nb.get("noteCount", 0) if nb else 0
-        depth = "深读" if note_count >= 10 else "精读片段" if note_count >= 3 else "略读"
-        print(f"- 「{title}」{author} ({depth}, {note_count}笔记)")
+标题/类别关键词匹配只能做确定性候选筛选，不能等价为语义分类。Path Context 支持显式别名：
+
+```bash
+python scripts/build_reading_path_context.py \
+  --topic "神经科学" \
+  --keywords "脑,意识,认知,记忆"
 ```
 
-## 数据展示规范
+主题过宽时先让用户细化；主题过窄时明确说明平台覆盖不足，不要静默扩展到相邻但不等价的领域。
 
-调任何接口处理时间戳字段（`readUpdateTime` / `updateTime` / `finishTime` / `createTime`）时一律转 `YYYY-MM-DD`：
+## 最近活动
 
-```python
-def fmt_ts(ts):
-    if not ts:
-        return ""
-    return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-```
+只有真实 `readUpdateTime > 0` 的书进入最近活动。`readUpdateTime=0` 代表尚无打开证据，不能为了排序方便当成最近阅读。
 
-阅读时长字段单位是秒，展示时转成「X 小时 Y 分钟」：
+用户明确指定主题时，主题优先；只有用户没有给方向时，最近 7/30 天活动才可以帮助选择 Advisor 的候选主题。
 
-```python
-def fmt_duration(seconds):
-    h = seconds // 3600
-    m = (seconds % 3600) // 60
-    return f"{h}小时{m}分钟" if h else f"{m}分钟"
-```
+## 数据展示
+
+- 时间戳 → `YYYY-MM-DD`；
+- 秒 → “X 小时 Y 分钟”；
+- 进度 → `X%`；
+- marks 是保存的原文，不自动视为用户观点；
+- reviews 是用户自己的想法证据；
+- 对外公开页面不发布原始 mark/review 正文。
