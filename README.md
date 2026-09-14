@@ -10,6 +10,7 @@
 
 GitHub Pages 不是项目介绍页，而是直接用仓库中的真实微信读书数据重新生成的**完整个人阅读档案**。当前页面已融合官方 Skill 与社区报告 / Dashboard / Recall / Knowledge Graph 等高价值模式，包含：
 
+- **七章档案结构**：阅读生涯 / 阅读节律 / 偏好与投入 / 知识与迁移 / 回顾与反向阅读 / 完整书架 / 数据边界；
 - **生涯层**：微信读书记录起点、累计阅读曲线、每年一章、2023–2026 年度透镜；
 - **阅读节律**：月度趋势、每日 Heatmap、24 小时阅读时钟、星期节律、跨年份月份季节性；
 - **官方档案**：`readStat`、类别 / 作者 / 出版社偏好、年度偏好书卡、勋章与里程碑；
@@ -17,8 +18,10 @@ GitHub Pages 不是项目介绍页，而是直接用仓库中的真实微信读�
 - **知识层**：阅读关注迁移、类别 → 书 → 作者 Knowledge Graph、跨类别桥接作者；
 - **记录演化**：年度划线 / 本人想法结构变化、事实型 Reading Profile；
 - **反思层**：Blindspot / Counter Reading、值得重新激活、想法写得最多的书；
-- **书目层**：高投入书、阅读时长 Top、最近阅读；
+- **每日重新激活**：从 Recall 候选中按日期稳定轮换一本，只展示书目、笔记数和距最后笔记时间，不公开正文；
 - **498 本完整书架 Explorer**：按书名 / 作者 / 类别搜索，按分类 / 进度过滤，按最近阅读 / 笔记 / 进度 / 书名排序；
+- **浏览器本地 Pin 队列**：可把书钉到临时阅读队列并切换“已 Pin”筛选；只写 `localStorage`，不调用微信读书写接口；
+- **长期页面体验层**：sticky 章节导航、当前章节高亮、顶部阅读进度、精简 / 完整模式、`/` 快捷聚焦书架搜索、返回顶部、移动端与 reduced-motion 适配；
 - 可下载的聚合 `report-data.json`。
 
 页面遵循“**有真实字段才展示**”：例如官方 `readRate / wrReadTime / wrListenTime` 当前缓存没有有效数据时，“文字阅读 vs 听书”整块自动隐藏，不用 0 伪装成事实。
@@ -32,6 +35,16 @@ WEREAD_PAGES_INCLUDE_PRIVATE=1
 因此线上个人档案会纳入 `secret=1` 书目的书名、作者、类别、计数和网络关系。原始划线、想法正文、本地全文搜索索引、Socratic / Feynman 私有学习内容仍不会写入 Page。
 
 如果未来需要恢复过滤模式，只需移除或关闭该环境变量；`build_pages_report.py` 默认仍是过滤私密书的安全模式。
+
+## Page 的交互原则
+
+当前 Page 把“静态报告”和“长期使用工具”分开处理：
+
+- **精简模式**只隐藏次要明细，不改任何统计值；状态仅保存在浏览器；
+- **Pin 队列**只保存在当前浏览器 `localStorage`，不会修改远端微信读书书架；
+- **今日重新激活**只消费 Recall 元数据，不把划线 / 想法正文塞进公开页面；
+- **完整书架搜索**只搜索书目元数据；全文笔记检索仍留在本地 SQLite；
+- 长页面使用 `content-visibility` 降低屏幕外模块的渲染成本，并提供键盘焦点与跳转入口。
 
 ## Skill 生态调研
 
@@ -66,6 +79,7 @@ WEREAD_PAGES_INCLUDE_PRIVATE=1
 - 金句筛选、去重和版权人工复核提示；
 - Legacy 16 项 Plotly Dashboard；
 - GitHub Pages 真实个人阅读档案；
+- Page 七章信息架构、精简模式、每日重新激活、浏览器本地 Pin 队列；
 - Python 3.11 / 3.13 CI。
 
 ## 核心架构
@@ -88,7 +102,8 @@ WeRead Agent Gateway
         │       ├─ Blindspot               ├─ focus shift / year lens
         │       ├─ Obsidian                ├─ knowledge network
         │       └─ Book → Skill            ├─ blindspot / recall
-        │                                  └─ 498-book explorer
+        │                                  ├─ 498-book explorer
+        │                                  └─ local UX state / Pin queue
         ▼
  stable schemas + renderers
 ```
@@ -248,7 +263,7 @@ site/index.html
 site/report-data.json
 ```
 
-线上 `.github/workflows/pages.yml` 当前显式使用完整个人档案模式。
+线上 `.github/workflows/pages.yml` 当前显式使用完整个人档案模式，并监听所有 Page 组装 / UI 模块；修改任一 UI 文件都会触发重建。
 
 Pages 的主要组装层：
 
@@ -258,7 +273,8 @@ Pages 的主要组装层：
 - `scripts/pages_enrichment.py`：官方偏好、24h 时钟、星期 / 季节节律、进度、回顾、全书架数据；
 - `scripts/pages_enrich_site.py`：档案 / 时钟 / 进度 / Explorer UI；
 - `scripts/pages_story_ui.py`：累计生涯、双散点、记录方式演化；
-- `scripts/pages_year_lens_ui.py`：2023–2026 交互式年度透镜。
+- `scripts/pages_year_lens_ui.py`：2023–2026 交互式年度透镜；
+- `scripts/pages_experience_ui.py`：七章导航、首屏摘要、精简模式、每日重新激活、书架本地 Pin 队列、快捷键、移动端与可访问性体验。
 
 ## Skills
 
@@ -280,9 +296,10 @@ Pages 的主要组装层：
 2. **事实与解释分离**：数值由代码计算；解释层不得伪造书、日期、引用或确定性心理标签。
 3. **不公开原始正文**：Pages 即使开启全量书目模式，也只发布聚合统计与书目元数据。
 4. **未知不等于零**：例如当前进度只有部分书有数据，页面必须展示 coverage，而不能把缺失进度当“未读”。
-5. **可追溯**：高阶结论尽量能回到书籍、时间段和确定性计数。
-6. **同步不覆盖用户内容**：自动同步只管理明确标记的机器区。
-7. **远端写入先预览**：任何远端修改必须先有计划和明确确认。
+5. **浏览器状态不等于远端状态**：Pin / 精简模式属于本地 UI 偏好，绝不能伪装成微信读书书架修改结果。
+6. **可追溯**：高阶结论尽量能回到书籍、时间段和确定性计数。
+7. **同步不覆盖用户内容**：自动同步只管理明确标记的机器区。
+8. **远端写入先预览**：任何远端修改必须先有计划和明确确认。
 
 ## 测试与 CI
 
@@ -298,6 +315,9 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行测试。覆盖范围包括：
 - 官方 `preferTime` 从 06:00 开始的映射；
 - 官方偏好 / 勋章 / 年度偏好书字段归一化；
 - 进度漏斗中“未知”与“未读”的严格分离；
+- 七章 Page UI、年度透镜、书架 Explorer；
+- Daily Recall 只使用元数据，不带原始 mark/review 正文；
+- Pin 队列仅使用 `localStorage`，不包含 WeRead 远端写入 / `fetch()`；
 - Reading Map / Knowledge Graph；
 - Cognitive Shift；
 - Reading Profile；
@@ -329,7 +349,10 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行测试。覆盖范围包括：
 - ✅ 24h 时钟 / 星期节律 / 季节性 / 生涯累计曲线
 - ✅ 官方偏好 / 勋章 / 年度偏好书
 - ✅ 年度透镜 / 双散点 / 划线→想法年度演化
-- ✅ 498 本全书架 Explorer
+- ✅ 七章档案导航 / 精简模式 / 当前章节高亮
+- ✅ 今日重新激活 / 20 个 Recall 候选轮换
+- ✅ 498 本全书架 Explorer / `/` 快捷搜索 / 浏览器本地 Pin 队列
+- ✅ Page 长页面渲染优化 / 可访问性入口 / reduced-motion
 - ✅ Pages 全量 `secret=1` 模式
 - ✅ Python 3.11 / 3.13 CI
 
