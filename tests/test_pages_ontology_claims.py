@@ -40,7 +40,7 @@ class OntologyClaimGraphTests(unittest.TestCase):
                 {"chapter": "A", "text": "A", "createTime": 1767225600},
                 {"chapter": "B", "text": "B", "createTime": 1767225700},
                 {"chapter": "C", "text": "C", "createTime": 1767225800},
-            ] * 5, "reviews": []},
+            ] * 7, "reviews": []},
         ]
         (root / "weread_shelf.json").write_text(json.dumps(shelf, ensure_ascii=False), encoding="utf-8")
         (root / "weread_notebooks.json").write_text("[]", encoding="utf-8")
@@ -57,8 +57,8 @@ class OntologyClaimGraphTests(unittest.TestCase):
         self.assertTrue(contract["deterministicClaims"])
         self.assertFalse(contract["rawTextPublished"])
         self.assertFalse(contract["runtimeApiRequired"])
-        self.assertEqual(payload["ontology"]["entityCounts"]["Evidence"], 20)
-        self.assertEqual(payload["ontology"]["relationCounts"]["evidenceFromBook"], 20)
+        self.assertEqual(payload["ontology"]["entityCounts"]["Evidence"], 26)
+        self.assertEqual(payload["ontology"]["relationCounts"]["evidenceFromBook"], 26)
         serialized = json.dumps(payload, ensure_ascii=False)
         self.assertNotIn("不会进入公开 contract", serialized)
         self.assertNotIn("私人想法", serialized)
@@ -88,8 +88,8 @@ class OntologyClaimGraphTests(unittest.TestCase):
             self.fixture(data)
             (site / "report-data.json").write_text(json.dumps({"privacyMode": "full"}), encoding="utf-8")
             (site / "index.html").write_text(
-                '<html><head><style></style></head><body><nav></nav>'
-                '<article class="card half" id="blindspot"></article><script>const x=1;</script></body></html>',
+                '<html><head><style></style></head><body><nav></nav>\n'
+                '  <article class="card half" id="blindspot"></article><script>const x=1;</script></body></html>',
                 encoding="utf-8",
             )
             payload = ocg.augment(site, data)
