@@ -84,6 +84,14 @@ class PagesPolishTests(unittest.TestCase):
         self.assertIn("min-width:720px", polish.CSS)
         self.assertNotIn("#weekday,#season{grid-column:span 6", polish.CSS)
 
+    def test_clock_face_is_compact_and_peak_columns_do_not_overflow(self):
+        self.assertIn("#clock .clock-svg{width:100%;max-width:288px;margin:auto}", polish.CSS)
+        self.assertIn("grid-template-columns:minmax(210px,300px) minmax(160px,1fr)", polish.CSS)
+        self.assertIn("grid-template-columns:26px 54px minmax(44px,1fr)", polish.CSS)
+        self.assertIn("white-space:nowrap", polish.CSS)
+        self.assertIn("text-align:right", polish.CSS)
+        self.assertIn("min-height:288px", polish.CSS)
+
     def test_focus_category_migration_sits_below_reading_focus(self):
         self.assertIn("#shift,#focus{grid-column:span 12!important}", polish.CSS)
         self.assertIn("shift.insertAdjacentElement('afterend',focus)", polish.JS)
