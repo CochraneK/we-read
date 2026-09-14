@@ -58,6 +58,16 @@ class PublicQuotesTests(unittest.TestCase):
         self.assertEqual({x["bookId"] for x in first["items"]}, {"pub", "sec"})
         self.assertTrue(first["policy"]["includePrivateBooks"])
 
+    def test_full_mark_index_includes_marks_but_never_reviews(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = Path(td); self.make_data(data)
+            rows = quotes.build_public_mark_index(data, include_private=True)
+        self.assertEqual(len(rows), 4)
+        self.assertTrue(all("text" in row for row in rows))
+        serialized = json.dumps(rows, ensure_ascii=False)
+        self.assertNotIn("用户自己的想法", serialized)
+        self.assertFalse(any("content" in row or "review" in row for row in rows))
+
     def test_long_highlight_is_hard_truncated(self):
         raw = "很长的划线内容" * 40
         excerpt, truncated = quotes.excerpt_text(raw, max_chars=90)
@@ -65,7 +75,7 @@ class PublicQuotesTests(unittest.TestCase):
         self.assertLessEqual(len(excerpt.rstrip("…")), 90)
         self.assertNotEqual(excerpt.rstrip("…"), raw)
 
-    def test_augment_site_renders_manual_random_and_hidden_browser_local_search(self):
+    def test_augment_site_renders_manual_random_and_auto_built_in_search(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td); data, site = root / "data", root / "site"
             data.mkdir(); site.mkdir(); self.make_data(data)
@@ -74,19 +84,26 @@ class PublicQuotesTests(unittest.TestCase):
             result = quotes.augment_site(site, data, enabled=True)
             page = (site / "index.html").read_text(encoding="utf-8")
             report = json.loads((site / "report-data.json").read_text(encoding="utf-8"))
+            asset = (site / "public-marks-index.js").read_text(encoding="utf-8")
         self.assertTrue(result["enabled"])
         self.assertIn('id="public-quotes"', page)
         self.assertIn('id="publicQuotePlayer"', page)
         self.assertIn('id="publicQuoteRandom"', page)
+        self.assertIn('id="publicQuoteResample"', page)
         self.assertIn("randomOne", page)
         self.assertIn('id="hiddenEvidenceSearch"', page)
-        self.assertIn("wereadPrivateEvidenceV1", page)
+        self.assertIn("wereadPublicMarksV2", page)
+        self.assertIn("public-marks-index.js", page)
+        self.assertIn("window.__WEREAD_BUILTIN_MARKS__=", asset)
         self.assertIn("indexedDB.open", page)
         self.assertIn("metaKey||e.ctrlKey", page)
         self.assertNotIn("fetch(", page)
         self.assertTrue(report["publicQuotes"]["policy"]["userAuthorized"])
         self.assertEqual(report["publicQuotes"]["policy"]["source"], "marks_only")
         self.assertEqual(report["publicQuotes"]["policy"]["candidateCount"], 4)
+        self.assertEqual(report["publicMarkIndex"]["count"], 4)
+        self.assertFalse(report["publicMarkIndex"]["reviewsPublished"])
+        self.assertEqual(result["markIndexCount"], 4)
 
 
 if __name__ == "__main__":
