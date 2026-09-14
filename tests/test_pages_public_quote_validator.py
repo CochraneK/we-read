@@ -11,19 +11,25 @@ assert spec.loader
 spec.loader.exec_module(validator)
 
 
+def policy(candidate_count=1):
+    return {
+        "enabled": True,
+        "userAuthorized": True,
+        "source": "marks_only",
+        "reviewsPublished": False,
+        "fullRawPublished": False,
+        "allNonEmptyMarksMayBeSampled": True,
+        "candidateCount": candidate_count,
+        "maxCharsPerExcerpt": 90,
+        "maxPerBook": 1,
+        "maxTotal": 48,
+    }
+
+
 def payload(item):
     return {
         "publicQuotes": {
-            "policy": {
-                "enabled": True,
-                "userAuthorized": True,
-                "source": "marks_only",
-                "reviewsPublished": False,
-                "fullRawPublished": False,
-                "maxCharsPerExcerpt": 90,
-                "maxPerBook": 1,
-                "maxTotal": 48,
-            },
+            "policy": policy(1),
             "count": 1,
             "items": [item],
         }
@@ -59,11 +65,7 @@ class PublicQuoteValidatorTests(unittest.TestCase):
     def test_rejects_second_quote_from_same_book(self):
         report = {
             "publicQuotes": {
-                "policy": {
-                    "enabled": True, "userAuthorized": True, "source": "marks_only",
-                    "reviewsPublished": False, "fullRawPublished": False,
-                    "maxCharsPerExcerpt": 90, "maxPerBook": 1, "maxTotal": 48,
-                },
+                "policy": policy(2),
                 "count": 2,
                 "items": [
                     {"bookId": "b1", "excerpt": "第一条划线。", "truncated": False, "sourceKind": "mark"},
