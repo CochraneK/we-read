@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
 import argparse
+import hashlib
 import json
 import os
 import time
@@ -29,6 +30,18 @@ def prompt_for(kind):
     return "不看原文：你能用自己的话解释这段内容，并举一个自己的例子吗？"
 
 
+def stable_evidence_id(book_id: str, kind: str, created_at: int, chapter: str, text: str) -> str:
+    """Stable id survives queue re-ordering/rebuilds for browser-local review history."""
+    raw = "\0".join([
+        str(book_id or ""),
+        str(kind or ""),
+        str(int(created_at or 0)),
+        str(chapter or "").strip(),
+        str(text or "").strip(),
+    ]).encode("utf-8")
+    return "ev-" + hashlib.sha256(raw).hexdigest()[:20]
+
+
 def collect_candidates(context, now_ts=None, min_age_days=30):
     now_ts = int(now_ts if now_ts is not None else time.time())
     out = []
@@ -46,6 +59,7 @@ def collect_candidates(context, now_ts=None, min_age_days=30):
                     continue
                 created = int(item.get("createTime") or 0)
                 text = str(item.get("text") or "").strip()
+                chapter = str(item.get("chapter") or "")
                 if not created or not text or created > now_ts:
                     continue
                 age_days = max(0, (now_ts - created) // DAY)
@@ -55,11 +69,12 @@ def collect_candidates(context, now_ts=None, min_age_days=30):
                     {
                         **base,
                         "kind": kind,
-                        "chapter": str(item.get("chapter") or ""),
+                        "chapter": chapter,
                         "text": text,
                         "createdAt": created,
                         "ageDays": int(age_days),
                         "prompt": prompt_for(kind),
+                        "evidenceId": stable_evidence_id(base["bookId"], kind, created, chapter, text),
                     }
                 )
     out.sort(
@@ -89,16 +104,19 @@ def build_queue(context, limit=20, min_age_days=30, max_per_book=2, now_ts=None)
 
     generated_ts = int(now_ts if now_ts is not None else time.time())
     for index, item in enumerate(selected, 1):
+        # Sequential id remains convenient for display; evidenceId is the stable
+        # identity used by local spaced-repetition history.
         item["id"] = f"recall-{index:03d}"
 
     return {
-        "version": "1",
+        "version": "2",
         "generatedAt": datetime.fromtimestamp(generated_ts, timezone.utc).isoformat(),
         "policy": {
             "minAgeDays": int(min_age_days),
             "maxPerBook": int(max_per_book),
             "limit": int(limit),
             "ordering": "oldest evidence first; reviews win ties; per-book diversity cap",
+            "stableIdentity": "evidenceId=sha256(bookId, kind, createdAt, chapter, text) prefix",
         },
         "coverage": {
             "candidateEvidence": len(candidates),
