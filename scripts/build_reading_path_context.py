@@ -63,28 +63,29 @@ def matches_topic(book: dict, terms: list[str]) -> bool:
 
 
 def suggest_level(relevant: list[dict]) -> tuple[str, str, bool]:
+    noted = [b for b in relevant if int(b.get("noteCount") or 0) > 0]
     engaged = [b for b in relevant if int(b.get("noteCount") or 0) >= 5]
-    strong = [b for b in relevant if int(b.get("noteCount") or 0) >= 10]
-    count = len(relevant)
+    noted_count = len(noted)
     engaged_count = len(engaged)
 
-    if count == 0:
-        return "zero", "No topic-matched books were found in the deterministic archive.", False
+    # Path.md bases its starting level on evidence of actual topic reading, not
+    # merely on books sitting on the shelf. Advanced additionally requires
+    # frontier/primary-source evidence that this metadata layer cannot prove.
+    if noted_count == 0:
+        return (
+            "zero",
+            f"Found {len(relevant)} topic-matched shelf/archive records, but no topic-matched book has note evidence.",
+            False,
+        )
     if engaged_count <= 2:
         return (
             "beginner",
-            f"Found {count} topic-matched books, but only {engaged_count} have at least 5 notes.",
+            f"Found {noted_count} topic-matched books with note evidence; only {engaged_count} have at least 5 notes.",
             False,
         )
-    if engaged_count <= 5 and not strong:
-        return (
-            "intermediate",
-            f"Found {engaged_count} topic-matched books with at least 5 notes, but no 10+ note deep-read signal.",
-            True,
-        )
     return (
-        "advanced",
-        f"Found {engaged_count} topic-matched books with at least 5 notes, including {len(strong)} with 10+ notes.",
+        "intermediate",
+        f"Found {engaged_count} topic-matched books with at least 5 notes. Metadata alone cannot justify an advanced label because frontier/primary-source evidence is still missing.",
         True,
     )
 
@@ -98,6 +99,7 @@ def build_context(advisor: dict, topic: str, *, keywords: list[str] | None = Non
     relevant.sort(key=lambda b: (-int(b.get("noteCount") or 0), -int(b.get("updateTime") or 0), str(b.get("title") or "")))
 
     level, reason, suggest_advisor = suggest_level(relevant)
+    noted = [b for b in relevant if int(b.get("noteCount") or 0) > 0]
     engaged = [b for b in relevant if int(b.get("noteCount") or 0) >= 5]
     already_read = [b for b in relevant if int(b.get("noteCount") or 0) >= 3]
 
@@ -111,6 +113,8 @@ def build_context(advisor: dict, topic: str, *, keywords: list[str] | None = Non
         "evidence": {
             "matchedBooks": relevant,
             "matchedBookCount": len(relevant),
+            "notedBooks": noted,
+            "notedBookCount": len(noted),
             "engagedBooks5Plus": engaged,
             "engagedBookCount": len(engaged),
             "alreadyRead3Plus": already_read,
@@ -121,6 +125,7 @@ def build_context(advisor: dict, topic: str, *, keywords: list[str] | None = Non
             "reason": reason,
             "requiresUserConfirmation": True,
             "suggestSwitchToAdvisor": suggest_advisor,
+            "advancedRequiresContentEvidence": True,
             "allowedOverrides": ["zero", "beginner", "intermediate", "advanced"],
         },
         "pathContract": {
@@ -175,7 +180,8 @@ def build_context(advisor: dict, topic: str, *, keywords: list[str] | None = Non
             "Topic matching here is deterministic metadata matching, not semantic proof of subject mastery.",
             "A provisional level is only a suggestion; user confirmation is mandatory before path generation.",
             "Do not invent candidate books from this context alone.",
-            "Intermediate/advanced signals should normally offer a switch to Advisor instead of forcing a beginner path.",
+            "Advanced cannot be inferred from note volume alone; it needs frontier or primary-source evidence or an explicit user override.",
+            "Intermediate signals should normally offer a switch to Advisor instead of forcing a beginner path.",
             "Every selected book must be checked for current availability and already-read status before final output.",
         ],
     }
