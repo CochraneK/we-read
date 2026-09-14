@@ -48,6 +48,20 @@ class PrivateReadingLabTests(unittest.TestCase):
         self.assertIn("build_deep_notes_context.py", flattened)
         self.assertNotIn("analysis.py", flattened)
 
+    def test_chinese_review_platform_builds_context_draft_markdown_and_html(self):
+        with tempfile.TemporaryDirectory() as td:
+            out=Path(td)
+            steps=lab.build_steps(out,include_private=True,with_text=False,topic="",book_id="",review_start="2026-01-01",review_end="2026-09-14",review_platform="公众号")
+        labels=[x[0] for x in steps]
+        self.assertIn("Narrative Review Context",labels)
+        self.assertIn("Narrative Review Draft",labels)
+        self.assertIn("Narrative Review Report",labels)
+        commands={label:cmd for label,cmd in steps}
+        self.assertIn("wechat",commands["Narrative Review Context"])
+        self.assertIn("wechat",commands["Narrative Review Draft"])
+        self.assertIn(str(out/"narrative_review.md"),commands["Narrative Review Draft"])
+        self.assertIn(str(out/"narrative_review.html"),commands["Narrative Review Report"])
+
     def test_text_mode_builds_alchemy_context_synthesis_and_report(self):
         with tempfile.TemporaryDirectory() as td:
             out = Path(td)
