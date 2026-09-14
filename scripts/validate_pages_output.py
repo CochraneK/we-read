@@ -29,6 +29,9 @@ REQUIRED_HTML_MARKERS = (
     "we-read-local-pins",
     "themeToggle",
     "wereadArchiveThemeV1",
+    "publicQuoteRandom",
+    "hiddenEvidenceSearch",
+    "wereadPrivateEvidenceV1",
 )
 RAW_KEYS = {"text", "content", "markText", "reviewText"}
 HARD_PUBLIC_QUOTE_MAX_CHARS = 120
@@ -69,7 +72,6 @@ def load_json(path: Path, default):
 
 
 def iter_raw_bodies(value) -> Iterable[str]:
-    """Yield likely user/source body strings, not titles/authors/metadata."""
     if isinstance(value, dict):
         for key, item in value.items():
             if key in RAW_KEYS and isinstance(item, str):
@@ -84,7 +86,6 @@ def iter_raw_bodies(value) -> Iterable[str]:
 
 
 def validate_public_quotes(report: dict, html: str) -> tuple[set[str], int]:
-    """Validate the only permitted public raw-text surface: bounded mark excerpts."""
     payload = report.get("publicQuotes")
     if not payload:
         if 'id="public-quotes"' in html:
@@ -100,6 +101,10 @@ def validate_public_quotes(report: dict, html: str) -> tuple[set[str], int]:
         raise ValueError("publicQuotes must never publish reviews")
     if policy.get("fullRawPublished") is not False:
         raise ValueError("publicQuotes must never publish full long raw bodies")
+    if policy.get("allNonEmptyMarksMayBeSampled") is not True:
+        raise ValueError("publicQuotes must sample from the full non-empty mark pool")
+    if int(policy.get("candidateCount") or 0) < int(payload.get("count") or 0):
+        raise ValueError("publicQuotes candidateCount cannot be smaller than published count")
     if 'id="public-quotes"' not in html:
         raise ValueError("publicQuotes enabled but #public-quotes section is missing")
 
@@ -143,8 +148,6 @@ def validate_public_quotes(report: dict, html: str) -> tuple[set[str], int]:
         per_book[bid] += 1
         if per_book[bid] > max_per_book:
             raise ValueError("public quote per-book limit exceeded")
-        # If a source highlight is itself already short, publishing the whole short
-        # body is allowed by this explicit contract. Long bodies must be truncated.
         if not bool(item.get("truncated")):
             allowed_exact_bodies.add(excerpt)
     return allowed_exact_bodies, len(items)
@@ -165,6 +168,8 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
     missing = [marker for marker in REQUIRED_HTML_MARKERS if marker not in html]
     if missing:
         raise ValueError("missing required Page markers: " + ", ".join(missing))
+    if "fetch(" in html or "XMLHttpRequest" in html or "WebSocket(" in html:
+        raise ValueError("hidden evidence search must remain browser-local and network-free")
 
     summary = report.get("summary") or {}
     insights = report.get("insights") or {}
@@ -176,11 +181,7 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
     if shelf_books <= 0:
         raise ValueError("summary.shelfBooks must be positive")
     if len(bookshelf) != shelf_books:
-        raise ValueError(
-            f"bookshelf count mismatch: summary={shelf_books} enrichment={len(bookshelf)}"
-        )
-    # This flag continues to mean that full/raw evidence payloads are absent.
-    # Authorized bounded excerpts are governed separately by publicQuotes.
+        raise ValueError(f"bookshelf count mismatch: summary={shelf_books} enrichment={len(bookshelf)}")
     if scope.get("rawTextPublished") is not False:
         raise ValueError("insights.scope.rawTextPublished must be false")
 
@@ -221,6 +222,7 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
         "inlineJsChars": len(inline),
         "rawBodiesChecked": checked,
         "publicQuotes": public_quote_count,
+        "publicQuoteCandidates": int(((report.get("publicQuotes") or {}).get("policy") or {}).get("candidateCount") or 0),
         "privateIncluded": int(summary.get("privateIncluded") or 0),
     }
 
