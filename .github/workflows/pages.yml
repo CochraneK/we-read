@@ -17,6 +17,7 @@ on:
       - 'scripts/pages_experience_ui.py'
       - 'scripts/pages_command_ui.py'
       - 'scripts/pages_queue_io_ui.py'
+      - 'scripts/pages_theme_ui.py'
       - 'scripts/validate_pages_output.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
