@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+from unittest import mock
 import importlib.util
 import tempfile
 import unittest
@@ -47,7 +48,7 @@ class PrivateReadingLabTests(unittest.TestCase):
         self.assertIn("build_deep_notes_context.py", flattened)
         self.assertNotIn("analysis.py", flattened)
 
-    def test_text_mode_adds_alchemy_and_private_hub_links(self):
+    def test_text_mode_adds_both_alchemy_modes(self):
         with tempfile.TemporaryDirectory() as td:
             out = Path(td)
             steps = lab.build_steps(
@@ -60,14 +61,23 @@ class PrivateReadingLabTests(unittest.TestCase):
                 review_end="2026-09-14",
                 review_platform="公众号",
             )
-            page = lab.render_index(out, with_text=True, topic="认知科学", book_id="book-1")
         labels = [label for label, _ in steps]
         self.assertIn("Alchemy Topic Context", labels)
         self.assertIn("Alchemy Book Context", labels)
-        self.assertIn("划线卡片", page)
-        self.assertIn("quote_cards.html", page)
-        self.assertIn("Deep Notes Context", page)
-        self.assertIn("不得接入公开 Pages", page)
+
+    def test_dashboard_renderer_is_the_final_entrypoint(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td)
+            captured = []
+            with mock.patch.object(lab, "run_step", side_effect=lambda args: captured.append(args)):
+                lab.render_dashboard(out)
+        self.assertEqual(len(captured), 1)
+        cmd = captured[0]
+        self.assertIn("scripts/renderers/private_lab.py", cmd)
+        self.assertIn(str(out / "visualization_context.json"), cmd)
+        self.assertIn(str(out / "deep_notes_context.json"), cmd)
+        self.assertIn(str(out / "recall_queue.json"), cmd)
+        self.assertIn(str(out / "index.html"), cmd)
 
 
 if __name__ == "__main__":
