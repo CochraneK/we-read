@@ -3,7 +3,8 @@
 """Validate the fully assembled GitHub Pages artifact before deployment.
 
 Checks the HTML/report contract, required UX markers, bookshelf count consistency,
-and a sample of source mark/review bodies to catch accidental raw-text leaks.
+and source mark/review bodies to catch accidental raw-text leaks. Short highlight
+excerpts may be public only through the explicit ``publicQuotes`` contract.
 It also writes concatenated inline JavaScript so CI can run ``node --check`` on
 exactly the script that will be deployed.
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Iterable
@@ -29,6 +31,9 @@ REQUIRED_HTML_MARKERS = (
     "wereadArchiveThemeV1",
 )
 RAW_KEYS = {"text", "content", "markText", "reviewText"}
+HARD_PUBLIC_QUOTE_MAX_CHARS = 120
+HARD_PUBLIC_QUOTE_MAX_TOTAL = 60
+HARD_PUBLIC_QUOTE_MAX_PER_BOOK = 1
 
 
 class InlineScriptParser(HTMLParser):
@@ -78,6 +83,73 @@ def iter_raw_bodies(value) -> Iterable[str]:
             yield from iter_raw_bodies(item)
 
 
+def validate_public_quotes(report: dict, html: str) -> tuple[set[str], int]:
+    """Validate the only permitted public raw-text surface: bounded mark excerpts."""
+    payload = report.get("publicQuotes")
+    if not payload:
+        if 'id="public-quotes"' in html:
+            raise ValueError("public quote section exists without publicQuotes report contract")
+        return set(), 0
+
+    policy = payload.get("policy") or {}
+    if policy.get("enabled") is not True or policy.get("userAuthorized") is not True:
+        raise ValueError("publicQuotes must be explicitly enabled and user-authorized")
+    if policy.get("source") != "marks_only":
+        raise ValueError("publicQuotes source must be marks_only")
+    if policy.get("reviewsPublished") is not False:
+        raise ValueError("publicQuotes must never publish reviews")
+    if policy.get("fullRawPublished") is not False:
+        raise ValueError("publicQuotes must never publish full long raw bodies")
+    if 'id="public-quotes"' not in html:
+        raise ValueError("publicQuotes enabled but #public-quotes section is missing")
+
+    try:
+        max_chars = int(policy.get("maxCharsPerExcerpt"))
+        max_per_book = int(policy.get("maxPerBook"))
+        max_total = int(policy.get("maxTotal"))
+    except (TypeError, ValueError):
+        raise ValueError("publicQuotes policy limits must be integers")
+    if not (1 <= max_chars <= HARD_PUBLIC_QUOTE_MAX_CHARS):
+        raise ValueError("publicQuotes maxCharsPerExcerpt exceeds hard safety cap")
+    if not (1 <= max_per_book <= HARD_PUBLIC_QUOTE_MAX_PER_BOOK):
+        raise ValueError("publicQuotes maxPerBook exceeds hard safety cap")
+    if not (0 <= max_total <= HARD_PUBLIC_QUOTE_MAX_TOTAL):
+        raise ValueError("publicQuotes maxTotal exceeds hard safety cap")
+
+    items = payload.get("items") or []
+    if not isinstance(items, list):
+        raise ValueError("publicQuotes.items must be a list")
+    if int(payload.get("count") or 0) != len(items):
+        raise ValueError("publicQuotes count mismatch")
+    if len(items) > max_total:
+        raise ValueError("publicQuotes contains more items than policy permits")
+
+    per_book = Counter()
+    allowed_exact_bodies: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("public quote item must be an object")
+        if item.get("sourceKind") != "mark":
+            raise ValueError("public quote item must come from a mark, never a review")
+        for forbidden in ("text", "content", "markText", "reviewText", "review"):
+            if forbidden in item:
+                raise ValueError(f"forbidden raw field in public quote item: {forbidden}")
+        bid = str(item.get("bookId") or "")
+        excerpt = " ".join(str(item.get("excerpt") or "").split()).strip()
+        if not bid or not excerpt:
+            raise ValueError("public quote requires bookId and excerpt")
+        if len(excerpt.rstrip("…")) > max_chars:
+            raise ValueError("public quote excerpt exceeds configured character cap")
+        per_book[bid] += 1
+        if per_book[bid] > max_per_book:
+            raise ValueError("public quote per-book limit exceeded")
+        # If a source highlight is itself already short, publishing the whole short
+        # body is allowed by this explicit contract. Long bodies must be truncated.
+        if not bool(item.get("truncated")):
+            allowed_exact_bodies.add(excerpt)
+    return allowed_exact_bodies, len(items)
+
+
 def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> dict:
     index_path = site / "index.html"
     report_path = site / "report-data.json"
@@ -107,6 +179,8 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
         raise ValueError(
             f"bookshelf count mismatch: summary={shelf_books} enrichment={len(bookshelf)}"
         )
+    # This flag continues to mean that full/raw evidence payloads are absent.
+    # Authorized bounded excerpts are governed separately by publicQuotes.
     if scope.get("rawTextPublished") is not False:
         raise ValueError("insights.scope.rawTextPublished must be false")
 
@@ -115,12 +189,19 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
         if f'"{forbidden_key}"' in serialized_enrichment:
             raise ValueError(f"forbidden raw-text field in enrichment: {forbidden_key}")
 
+    allowed_public_bodies, public_quote_count = validate_public_quotes(report, html)
+
     notes = load_json(data / "weread_notes_export.json", [])
     checked = 0
     for body in iter_raw_bodies(notes):
         needle = body[:160]
         if needle in html or needle in report_text:
-            raise ValueError("raw mark/review body leaked into Pages output")
+            if body in allowed_public_bodies:
+                checked += 1
+                if checked >= sample_limit:
+                    break
+                continue
+            raise ValueError("raw mark/review body leaked into Pages output outside publicQuotes policy")
         checked += 1
         if checked >= sample_limit:
             break
@@ -139,6 +220,7 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
         "inlineScripts": len(parser.scripts),
         "inlineJsChars": len(inline),
         "rawBodiesChecked": checked,
+        "publicQuotes": public_quote_count,
         "privateIncluded": int(summary.get("privateIncluded") or 0),
     }
 
