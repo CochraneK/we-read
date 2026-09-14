@@ -21,6 +21,7 @@ def load_module(name, path):
 story = load_module("weread_pages_story_ui", SCRIPTS / "pages_story_ui.py")
 enrich = load_module("weread_pages_enrich_site", SCRIPTS / "pages_enrich_site.py")
 experience = load_module("weread_pages_experience_ui", SCRIPTS / "pages_experience_ui.py")
+command = load_module("weread_pages_command_ui", SCRIPTS / "pages_command_ui.py")
 
 
 class PagesUiCompositionTests(unittest.TestCase):
@@ -75,7 +76,7 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("wereadArchiveLastChapter", experience.JS)
         self.assertIn("wereadArchiveShelfStateV1", experience.JS)
         self.assertIn("resumeChapter", experience.JS)
-        self.assertIn("continue", "continue")
+        self.assertIn("继续上次", experience.JS)
         self.assertIn("state.query", experience.JS)
         self.assertIn("state.category", experience.JS)
         self.assertIn("state.progress", experience.JS)
@@ -91,16 +92,34 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertNotIn("/shelf/", experience.JS)
         self.assertNotIn("fetch(", experience.JS)
 
-    def test_experience_enhancer_injects_css_and_js(self):
+    def test_command_palette_searches_only_chapters_and_bookshelf_metadata(self):
+        self.assertIn("archiveCommand", command.JS)
+        self.assertIn("commandInput", command.JS)
+        self.assertIn("chapterCommands", command.JS)
+        self.assertIn("E.bookshelf", command.JS)
+        self.assertIn("e.metaKey||e.ctrlKey", command.JS)
+        self.assertIn("ArrowDown", command.JS)
+        self.assertIn("ArrowUp", command.JS)
+        self.assertIn("renderShelf(true)", command.JS)
+        self.assertIn("chapter-shelf", command.JS)
+        self.assertNotIn("fetch(", command.JS)
+        self.assertNotIn("markText", command.JS)
+        self.assertNotIn("reviewText", command.JS)
+
+    def test_experience_and_command_enhancers_inject_css_and_js(self):
         base = "<html><head><style>BASE</style></head><body><script>BASEJS</script></body></html>"
         out = experience.enhance(base)
+        out = command.enhance(out)
         self.assertIn("chapter-heading", out)
         self.assertIn("wereadArchiveFocus", out)
         self.assertIn("wereadArchivePinsV1", out)
         self.assertIn("wereadArchiveShelfStateV1", out)
         self.assertIn("daily-recall", out)
+        self.assertIn("command-backdrop", out)
+        self.assertIn("archiveCommand", out)
         self.assertLess(out.index("BASE"), out.index("chapter-heading"))
         self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
+        self.assertLess(out.index("wereadArchiveFocus"), out.index("archiveCommand"))
 
 
 if __name__ == "__main__":
