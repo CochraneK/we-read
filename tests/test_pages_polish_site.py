@@ -34,6 +34,8 @@ class PagesPolishTests(unittest.TestCase):
         self.assertNotIn("#publicQuoteResample{background:", quotes.CSS)
         self.assertIn("#publicQuoteRandom .dice", quotes.CSS)
         self.assertIn("#publicQuoteResample .dice", quotes.CSS)
+        self.assertIn("randomDice.textContent='⚄'", polish.JS)
+        self.assertIn("resampleDice.textContent='⚅'", polish.JS)
 
     def test_we_read_links_use_https_search_not_app_scheme(self):
         self.assertTrue(quotes.web_search_link("测试书").startswith("https://weread.qq.com/web/search/books?keyword="))
@@ -57,9 +59,13 @@ class PagesPolishTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             path = quotes.write_public_mark_index(Path(td), rows)
             text = path.read_text(encoding="utf-8")
-        self.assertIn("window.__WEREAD_BUILTIN_MARKS__=", text)
-        self.assertIn("划线正文", text)
-        self.assertNotIn("review", text.lower())
+        prefix = "window.__WEREAD_BUILTIN_MARKS__="
+        payload = text[text.index(prefix)+len(prefix):].strip().rstrip(";")
+        parsed = json.loads(payload)
+        self.assertEqual(len(parsed), 1)
+        self.assertEqual(parsed[0]["text"], "划线正文")
+        self.assertNotIn("content", parsed[0])
+        self.assertNotIn("review", parsed[0])
 
     def test_polish_keeps_views_in_chapters_and_cleans_placeholders(self):
         self.assertNotIn("annual-overview-cluster", polish.CSS)
