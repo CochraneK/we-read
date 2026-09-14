@@ -23,6 +23,13 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 DATA = Path(os.environ.get("WEREAD_DATA_DIR", ROOT / "data")).expanduser().resolve()
 DEFAULT_OUT = DATA / "analysis" / "private_lab"
+REVIEW_PLATFORM_CODES = {
+    "朋友圈": "moments",
+    "公众号": "wechat",
+    "小红书": "xiaohongshu",
+    "视频脚本": "video",
+    "个人日记": "journal",
+}
 
 
 def run_step(args: list[str]) -> None:
@@ -49,14 +56,22 @@ def build_steps(out_dir: Path, *, include_private: bool, with_text: bool, topic:
         ("Search Index", ["scripts/build_search_index.py", "--context", str(context), "--db", str(out_dir / "search.sqlite"), "--rebuild"]),
         ("Deep Notes Context", ["scripts/build_deep_notes_context.py", "--context", str(context), "--output", str(out_dir / "deep_notes_context.json")]),
     ])
+    review_platform_code = REVIEW_PLATFORM_CODES.get(review_platform, review_platform)
+    review_context = out_dir / "narrative_review_context.json"
     review = [
         "scripts/build_narrative_review_context.py", "--context", str(context),
         "--readdata", str(DATA / "weread_readdata.json"), "--start", review_start,
-        "--end", review_end, "--output", str(out_dir / "narrative_review_context.json"),
+        "--end", review_end, "--output", str(review_context),
     ]
-    if review_platform:
-        review.extend(["--platform", review_platform])
+    if review_platform_code:
+        review.extend(["--platform", review_platform_code])
     steps.append(("Narrative Review Context", review))
+    if review_platform_code:
+        review_draft = out_dir / "narrative_review_draft.json"
+        steps.extend([
+            ("Narrative Review Draft", ["scripts/build_narrative_review_draft.py", "--input", str(review_context), "--platform", review_platform_code, "--output", str(review_draft), "--markdown", str(out_dir / "narrative_review.md")]),
+            ("Narrative Review Report", ["scripts/renderers/narrative_review_private.py", "--input", str(review_draft), "--output", str(out_dir / "narrative_review.html")]),
+        ])
 
     if with_text and topic:
         ctx = out_dir / "alchemy_topic_context.json"
@@ -200,7 +215,7 @@ def main():
     render_dashboard(out_dir)
 
     manifest = {
-        "version": 5,
+        "version": 6,
         "private": True,
         "publicPageSafe": False,
         "containsRawEvidence": True,
@@ -209,6 +224,7 @@ def main():
         "includesQuoteCards": bool(args.with_text),
         "includesBrowserLocalRecallHistory": True,
         "includesAlchemySynthesisReport": bool(args.with_text and (args.topic.strip() or args.book_id.strip())),
+        "includesNarrativeReviewDraft": bool(args.review_platform),
         "includesAdvisorLiveCatalog": bool(args.advisor_query.strip()),
         "includesReadingPathDiscovery": bool(args.path_topic.strip()),
         "includesReadingPathFinalPlan": bool(args.path_candidates),
@@ -217,13 +233,14 @@ def main():
         "bookAlchemy": args.book_id.strip() or None,
         "advisorQuery": args.advisor_query.strip() or None,
         "pathTopic": args.path_topic.strip() or None,
+        "reviewPlatform": REVIEW_PLATFORM_CODES.get(args.review_platform, args.review_platform) or None,
         "entry": "index.html",
         "privacyNote": "Search/Recall/context artifacts contain mark/review text even without --with-text; keep the entire directory private.",
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(
         f"private-reading-lab: {out_dir / 'index.html'} | quote_cards={args.with_text} "
-        f"advisor_live={bool(args.advisor_query.strip())} path={bool(args.path_topic.strip())} "
+        f"review={bool(args.review_platform)} advisor_live={bool(args.advisor_query.strip())} path={bool(args.path_topic.strip())} "
         f"validated=true raw_evidence=true recall_history=browser-local public_page_safe=false"
     )
 
