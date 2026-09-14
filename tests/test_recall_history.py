@@ -33,14 +33,20 @@ class RecallHistoryTests(unittest.TestCase):
         self.assertEqual(a["evidenceId"], b["evidenceId"])
         self.assertTrue(a["evidenceId"].startswith("ev-"))
 
-    def test_final_ui_adds_local_history_without_network(self):
+    def test_final_ui_adds_local_history_answers_and_no_network(self):
         data = {"coverage":{},"books":[],"evidence":[],"deep":{},"recall":{"items":[{"id":"recall-001","evidenceId":"ev-1","bookId":"b","title":"书","kind":"review","ageDays":90,"prompt":"回忆？","text":"证据","chapter":"一"}]},"advisor":{},"blindspot":{},"review":{},"quoteCards":False}
         page = ui.augment(base.render(data))
         self.assertIn("wereadPrivateRecallHistoryV1", page)
         self.assertIn("nextReviewAt", page)
         self.assertIn("导出历史", page)
         self.assertIn("data-recall=", page)
+        self.assertIn("data-recall-answer", page)
+        self.assertIn("answerHistory", page)
+        self.assertIn("lexicalOverlap", page)
+        self.assertIn("我现在怎么理解", page)
         self.assertNotIn("fetch(", ui.JS)
+        self.assertNotIn("XMLHttpRequest", ui.JS)
+        self.assertNotIn("WebSocket", ui.JS)
 
 
 if __name__ == "__main__":
