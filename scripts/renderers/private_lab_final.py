@@ -40,6 +40,7 @@ def parse_args():
     parser.add_argument("--advisor-report", type=Path, default=base.LAB / "advisor.html")
     parser.add_argument("--path-discovery-report", type=Path, default=base.LAB / "reading_path_discovery.html")
     parser.add_argument("--path-plan-report", type=Path, default=base.LAB / "reading_path.html")
+    parser.add_argument("--review-report", type=Path, default=base.LAB / "narrative_review.html")
     parser.add_argument("--output", type=Path, default=base.LAB / "index.html")
     return parser.parse_args()
 
@@ -64,6 +65,7 @@ def main():
         "advisor": args.advisor_report.exists(),
         "pathDiscovery": args.path_discovery_report.exists(),
         "pathPlan": args.path_plan_report.exists(),
+        "review": args.review_report.exists(),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render_final(data, assets=assets), encoding="utf-8")
