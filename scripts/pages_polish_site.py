@@ -5,10 +5,11 @@
 This layer changes presentation only:
 - annual summary is absorbed by the interactive year lens and hidden externally;
 - 24h clock + weekday rhythm share one row;
+- the clock face is compact so it does not over-height the paired weekday card;
+- clock Top 3 uses fixed rank / hour / duration columns and stays inside the card;
 - seasonality spans the full row so all 12 months stay on one line;
 - category migration sits directly below reading focus migration;
 - empty official-preference placeholders and noisy title suffixes are cleaned;
-- the 24h-clock Top 3 activity display stays compact;
 - quote action buttons keep identical backgrounds while only dice glyphs differ.
 """
 from __future__ import annotations
@@ -24,6 +25,10 @@ CSS = r'''
 #medals{grid-column:span 12!important}
 /* Rhythm chapter: clock + weekday together, seasonality full width beneath. */
 #clock,#weekday{grid-column:span 6!important}
+#clock .clock-wrap{grid-template-columns:minmax(210px,300px) minmax(160px,1fr);gap:16px;align-items:center}
+#clock .clock-svg{width:100%;max-width:288px;margin:auto}
+#clock .clock-wrap>div:last-child{min-width:0;min-height:288px;display:flex;flex-direction:column;justify-content:center}
+#clock .clock-wrap>div:last-child>.subtle{margin:0 0 12px;line-height:1.65}
 #season{grid-column:span 12!important;overflow-x:auto}
 #season .season-grid{grid-template-columns:repeat(12,minmax(54px,1fr));gap:8px;row-gap:0;min-height:168px;min-width:720px}
 #season .rhythm-bar-wrap{height:100px}
@@ -37,15 +42,16 @@ CSS = r'''
 #focus .focus-year{font-size:18px}
 #focus .chips{gap:5px}
 #focus .chip{padding:5px 7px;font-size:10px}
-/* Compact clock peak ranking: one clear line per hour instead of stacked fragments. */
+/* Compact clock peak ranking: fixed rank / hour / duration columns. */
 #clockPeak.clock-peak-list{display:grid;grid-template-columns:1fr;gap:7px}
-#clockPeak.clock-peak-list .deep-card{min-height:0;padding:9px 11px;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;border-radius:12px}
-.clock-peak-rank{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent3) 15%,var(--paper));color:var(--accent);font-size:11px;font-weight:800}
-#clockPeak.clock-peak-list .deep-card b{margin:0;font-size:14px}
-#clockPeak.clock-peak-list .deep-card p{margin:0;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+#clockPeak.clock-peak-list .deep-card{min-width:0;min-height:0;padding:8px 10px;display:grid;grid-template-columns:26px 54px minmax(44px,1fr);align-items:center;gap:8px;border-radius:12px}
+.clock-peak-rank{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent3) 15%,var(--paper));color:var(--accent);font-size:10px;font-weight:800}
+#clockPeak.clock-peak-list .deep-card b{margin:0;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#clockPeak.clock-peak-list .deep-card p{margin:0;color:var(--muted);font-size:11px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .pref-book.no-cover,.year-book-card.no-cover{padding-top:13px}.pref-book.no-cover .pref-book-cover,.year-book-card.no-cover .year-book-cover{display:none}.pref-book-grid.is-empty,.year-book-strip.is-empty{display:none!important}
-@media(max-width:900px){#clock,#weekday,#medals,#shift,#focus{grid-column:span 12!important}#season{grid-column:span 12!important}.year-overview-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){#season .season-grid{min-width:680px}.year-overview-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1100px){#clock .clock-wrap{grid-template-columns:minmax(190px,260px) minmax(150px,1fr);gap:12px}#clock .clock-svg{max-width:250px}#clock .clock-wrap>div:last-child{min-height:250px}}
+@media(max-width:900px){#clock,#weekday,#medals,#shift,#focus{grid-column:span 12!important}#clock .clock-wrap{grid-template-columns:minmax(220px,300px) minmax(180px,1fr);gap:18px}#clock .clock-svg{max-width:288px}#clock .clock-wrap>div:last-child{min-height:288px}#season{grid-column:span 12!important}.year-overview-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){#clock .clock-wrap{grid-template-columns:1fr}#clock .clock-svg{max-width:270px}#clock .clock-wrap>div:last-child{min-height:0}#season .season-grid{min-width:680px}.year-overview-grid{grid-template-columns:1fr 1fr}}
 '''
 
 JS = r'''
@@ -85,7 +91,7 @@ def polish(site_dir: Path = SITE) -> None:
         page = page.replace("</style>", CSS + "\n</style>", 1)
         page = page.replace("</script>", JS + "\n</script>", 1)
         path.write_text(page, encoding="utf-8")
-    print("Pages polish: annual summary merged into year lens; rhythm and focus layouts aligned")
+    print("Pages polish: compact clock face, aligned peak ranking, annual/rhythm/focus layout")
 
 
 if __name__ == "__main__":
