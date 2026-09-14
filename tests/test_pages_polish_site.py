@@ -19,6 +19,7 @@ def load(name, path):
 quotes = load("pages_public_quotes_polish_test", ROOT / "scripts" / "pages_public_quotes.py")
 hidden = load("pages_hidden_search_polish_test", ROOT / "scripts" / "pages_hidden_search_ui.py")
 polish = load("pages_polish_site_test", ROOT / "scripts" / "pages_polish_site.py")
+year_lens = load("pages_year_lens_polish_test", ROOT / "scripts" / "pages_year_lens_ui.py")
 
 
 class PagesPolishTests(unittest.TestCase):
@@ -67,12 +68,27 @@ class PagesPolishTests(unittest.TestCase):
         self.assertNotIn("content", parsed[0])
         self.assertNotIn("review", parsed[0])
 
-    def test_polish_keeps_views_in_chapters_and_cleans_placeholders(self):
-        self.assertNotIn("annual-overview-cluster", polish.CSS)
-        self.assertNotIn("appendChild(card)", polish.JS)
-        self.assertIn("#annual-summary,#medals", polish.CSS)
-        self.assertIn("#weekday,#season", polish.CSS)
-        self.assertIn("#shift,#focus", polish.CSS)
+    def test_year_lens_absorbs_annual_summary_with_total_and_overview(self):
+        self.assertIn("TOTAL_YEAR='__total__'", year_lens.JS)
+        self.assertIn('>总计</button>', year_lens.JS)
+        self.assertIn('id="yearOverviewGrid"', year_lens.HTML)
+        self.assertIn("totalYearModel", year_lens.JS)
+        self.assertIn("跨年 12 个月累计", year_lens.JS)
+        self.assertIn("年度一览", year_lens.HTML)
+        self.assertIn("#annual-summary{display:none!important}", polish.CSS)
+
+    def test_rhythm_layout_pairs_clock_weekday_and_keeps_twelve_months_one_row(self):
+        self.assertIn("#clock,#weekday{grid-column:span 6!important}", polish.CSS)
+        self.assertIn("#season{grid-column:span 12!important", polish.CSS)
+        self.assertIn("repeat(12,minmax(54px,1fr))", polish.CSS)
+        self.assertIn("min-width:720px", polish.CSS)
+        self.assertNotIn("#weekday,#season{grid-column:span 6", polish.CSS)
+
+    def test_focus_category_migration_sits_below_reading_focus(self):
+        self.assertIn("#shift,#focus{grid-column:span 12!important}", polish.CSS)
+        self.assertIn("shift.insertAdjacentElement('afterend',focus)", polish.JS)
+
+    def test_polish_cleans_placeholders_and_noisy_titles(self):
         self.assertIn("cleanPreferenceGrid", polish.JS)
         self.assertIn("cleanTopTitle", polish.JS)
         self.assertIn("MutationObserver", polish.JS)
