@@ -22,6 +22,8 @@ on:
       - 'scripts/validate_pages_output.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
