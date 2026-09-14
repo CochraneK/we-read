@@ -15,6 +15,7 @@ on:
       - 'scripts/pages_story_ui.py'
       - 'scripts/pages_year_lens_ui.py'
       - 'scripts/pages_experience_ui.py'
+      - 'scripts/pages_command_ui.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
