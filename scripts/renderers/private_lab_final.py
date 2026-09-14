@@ -49,11 +49,19 @@ def parse_args():
     return parser.parse_args()
 
 
+def _asset_exists(explicit: Path, out_dir: Path, filename: str) -> bool:
+    """Prefer a sibling artifact beside the requested output, then explicit path."""
+    sibling = out_dir / filename
+    return sibling.exists() or explicit.exists()
+
+
 def main():
     args = parse_args()
     context = base.read_json(args.context, {})
     if not context:
         raise SystemExit(f"ERROR: missing/invalid context: {args.context}")
+    out_dir = args.output.parent
+    quote_cards_exists = (out_dir / "quote_cards.html").exists() or args.quote_cards.exists()
     data = base.payload(
         context,
         base.read_json(args.deep, {}),
@@ -61,21 +69,21 @@ def main():
         base.read_json(args.advisor, {}),
         base.read_json(args.blindspot, {}),
         base.read_json(args.review, {}),
-        quote_cards_exists=args.quote_cards.exists(),
+        quote_cards_exists=quote_cards_exists,
     )
     assets = {
-        "alchemyTopic": args.alchemy_topic_report.exists(),
-        "alchemyBook": args.alchemy_book_report.exists(),
-        "advisor": args.advisor_report.exists(),
-        "advisorSemanticEditor": args.advisor_semantic_editor.exists(),
-        "advisorSemanticResult": args.advisor_semantic_result.exists(),
-        "pathDiscovery": args.path_discovery_report.exists(),
-        "pathSemanticEditor": args.path_semantic_editor.exists(),
-        "pathSemanticResult": args.path_semantic_result.exists(),
-        "pathPlan": args.path_plan_report.exists(),
-        "review": args.review_report.exists(),
+        "alchemyTopic": _asset_exists(args.alchemy_topic_report, out_dir, "alchemy_topic.html"),
+        "alchemyBook": _asset_exists(args.alchemy_book_report, out_dir, "alchemy_book.html"),
+        "advisor": _asset_exists(args.advisor_report, out_dir, "advisor.html"),
+        "advisorSemanticEditor": _asset_exists(args.advisor_semantic_editor, out_dir, "advisor_semantic_editor.html"),
+        "advisorSemanticResult": _asset_exists(args.advisor_semantic_result, out_dir, "advisor_semantic.html"),
+        "pathDiscovery": _asset_exists(args.path_discovery_report, out_dir, "reading_path_discovery.html"),
+        "pathSemanticEditor": _asset_exists(args.path_semantic_editor, out_dir, "reading_path_semantic_editor.html"),
+        "pathSemanticResult": _asset_exists(args.path_semantic_result, out_dir, "reading_path_semantic.html"),
+        "pathPlan": _asset_exists(args.path_plan_report, out_dir, "reading_path.html"),
+        "review": _asset_exists(args.review_report, out_dir, "narrative_review.html"),
     }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render_final(data, assets=assets), encoding="utf-8")
     print(
         f"private-lab-final: {args.output} | books={len(data['books'])} "
