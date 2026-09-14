@@ -23,6 +23,7 @@ enrich = load_module("weread_pages_enrich_site", SCRIPTS / "pages_enrich_site.py
 experience = load_module("weread_pages_experience_ui", SCRIPTS / "pages_experience_ui.py")
 command = load_module("weread_pages_command_ui", SCRIPTS / "pages_command_ui.py")
 queue_io = load_module("weread_pages_queue_io_ui", SCRIPTS / "pages_queue_io_ui.py")
+theme = load_module("weread_pages_theme_ui", SCRIPTS / "pages_theme_ui.py")
 
 
 class PagesUiCompositionTests(unittest.TestCase):
@@ -122,7 +123,18 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertNotIn("reviews", queue_io.JS)
         self.assertNotIn("/shelf/", queue_io.JS)
 
-    def test_experience_command_and_queue_enhancers_inject_css_and_js(self):
+    def test_theme_switcher_is_local_and_supports_three_modes(self):
+        self.assertIn("wereadArchiveThemeV1", theme.JS)
+        self.assertIn("themeToggle", theme.JS)
+        self.assertIn("['system','light','dark']", theme.JS)
+        self.assertIn('html[data-theme="light"]', theme.CSS)
+        self.assertIn('html[data-theme="dark"]', theme.CSS)
+        self.assertIn("localStorage.setItem(key,current)", theme.JS)
+        self.assertIn("prefers-color-scheme: dark", theme.JS)
+        self.assertNotIn("fetch(", theme.JS)
+        self.assertNotIn("report-data.json", theme.JS)
+
+    def test_experience_command_queue_and_theme_enhancers_inject_css_and_js(self):
         base = "<html><head><style>BASE</style></head><body><script>BASEJS</script></body></html>"
         out = experience.enhance(base)
         out = command.enhance(out)
@@ -135,10 +147,13 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("archiveCommand", out)
         self.assertIn("shelf-local-actions", out)
         self.assertIn("we-read-local-pins", out)
+        self.assertIn("themeToggle", out)
+        self.assertIn("wereadArchiveThemeV1", out)
         self.assertLess(out.index("BASE"), out.index("chapter-heading"))
         self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
         self.assertLess(out.index("wereadArchiveFocus"), out.index("archiveCommand"))
         self.assertLess(out.index("archiveCommand"), out.index("we-read-local-pins"))
+        self.assertLess(out.index("we-read-local-pins"), out.index("wereadArchiveThemeV1"))
 
 
 if __name__ == "__main__":
