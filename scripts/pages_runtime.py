@@ -9,6 +9,7 @@ to ``build_pages_report``. Raw mark/review text is never published.
 from __future__ import annotations
 
 import build_pages_report as report
+import pages_command_ui
 import pages_experience_ui
 import pages_insights as filtered_insights
 import pages_insights_full as full_insights
@@ -80,7 +81,8 @@ def enhance_template(template: str) -> str:
     marker = '  <article class="card wide privacy">'
     template = template.replace(marker, EXTRA_HTML + "\n" + marker, 1)
     template = template.replace("</script>", EXTRA_JS + "\n</script>", 1)
-    return pages_experience_ui.enhance(template)
+    template = pages_experience_ui.enhance(template)
+    return pages_command_ui.enhance(template)
 
 
 def main() -> None:
