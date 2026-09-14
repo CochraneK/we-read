@@ -79,6 +79,7 @@ def apply(brief: dict, *, min_confidence: float = 0.55) -> dict:
         "topic": brief.get("topic"),
         "minConfidence": min_confidence,
         "promoted": promoted,
+        "items": promoted,
         "rejected": rejected,
         "readyForFinalRecommendation": mode == "advisor" and bool(promoted),
         "readyForPathPlan": mode == "path" and bool(promoted),
