@@ -3,12 +3,13 @@
 """Final presentation polish for the assembled WeRead Pages artifact.
 
 This layer changes presentation only:
-- keeps annual summary / seasonality / focus migration inside their original chapters;
-- pairs them with nearby chapter modules so they do not sit alone on a row;
-- removes empty official-preference placeholders and empty cover blocks;
-- shortens display-only trailing edition/adaptation parentheticals in Reading Top;
-- compacts the 24h-clock Top 3 activity display;
-- keeps quote action buttons visually consistent while coloring only dice glyphs.
+- annual summary is absorbed by the interactive year lens and hidden externally;
+- 24h clock + weekday rhythm share one row;
+- seasonality spans the full row so all 12 months stay on one line;
+- category migration sits directly below reading focus migration;
+- empty official-preference placeholders and noisy title suffixes are cleaned;
+- the 24h-clock Top 3 activity display stays compact;
+- quote action buttons keep identical backgrounds while only dice glyphs differ.
 """
 from __future__ import annotations
 
@@ -18,22 +19,24 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 
 CSS = r'''
-/* Keep the three formerly-isolated annual views inside their original chapters. */
-#annual-summary,#medals{grid-column:span 6!important}
-#clock{grid-column:span 12!important}
-#weekday,#season{grid-column:span 6!important}
-#shift,#focus{grid-column:span 6!important}
-#shift .shift-card{grid-template-columns:64px minmax(0,1fr);gap:11px;padding:12px}
-#shift .shift-year{font-size:21px}
+/* Annual summary now lives inside #year-lens as the Total view. */
+#annual-summary{display:none!important}
+#medals{grid-column:span 12!important}
+/* Rhythm chapter: clock + weekday together, seasonality full width beneath. */
+#clock,#weekday{grid-column:span 6!important}
+#season{grid-column:span 12!important;overflow-x:auto}
+#season .season-grid{grid-template-columns:repeat(12,minmax(54px,1fr));gap:8px;row-gap:0;min-height:168px;min-width:720px}
+#season .rhythm-bar-wrap{height:100px}
+#season .rhythm-label,#season .rhythm-value{font-size:10px}
+/* Knowledge chapter: reading focus migration first, category migration directly below. */
+#shift,#focus{grid-column:span 12!important}
+#shift .shift-card{grid-template-columns:74px minmax(0,1fr);gap:12px;padding:13px}
+#shift .shift-year{font-size:22px}
 #focus .focus-list{gap:7px}
-#focus .focus-row{grid-template-columns:54px 1fr;gap:9px;padding:8px 0}
+#focus .focus-row{grid-template-columns:64px 1fr;gap:10px;padding:9px 0}
 #focus .focus-year{font-size:18px}
 #focus .chips{gap:5px}
 #focus .chip{padding:5px 7px;font-size:10px}
-#annual-summary .table th,#annual-summary .table td{padding:8px 6px;font-size:11px}
-#season .season-grid{grid-template-columns:repeat(6,1fr);gap:6px;row-gap:12px;min-height:158px}
-#season .rhythm-bar-wrap{height:82px}
-#season .rhythm-label,#season .rhythm-value{font-size:9px}
 /* Compact clock peak ranking: one clear line per hour instead of stacked fragments. */
 #clockPeak.clock-peak-list{display:grid;grid-template-columns:1fr;gap:7px}
 #clockPeak.clock-peak-list .deep-card{min-height:0;padding:9px 11px;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;border-radius:12px}
@@ -41,8 +44,8 @@ CSS = r'''
 #clockPeak.clock-peak-list .deep-card b{margin:0;font-size:14px}
 #clockPeak.clock-peak-list .deep-card p{margin:0;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 .pref-book.no-cover,.year-book-card.no-cover{padding-top:13px}.pref-book.no-cover .pref-book-cover,.year-book-card.no-cover .year-book-cover{display:none}.pref-book-grid.is-empty,.year-book-strip.is-empty{display:none!important}
-@media(max-width:900px){#annual-summary,#medals,#weekday,#season,#shift,#focus{grid-column:span 12!important}#season .season-grid{grid-template-columns:repeat(12,1fr)}#season .rhythm-bar-wrap{height:92px}}
-@media(max-width:560px){#season .season-grid{grid-template-columns:repeat(6,1fr)}}
+@media(max-width:900px){#clock,#weekday,#medals,#shift,#focus{grid-column:span 12!important}#season{grid-column:span 12!important}.year-overview-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){#season .season-grid{min-width:680px}.year-overview-grid{grid-template-columns:1fr 1fr}}
 '''
 
 JS = r'''
@@ -57,6 +60,10 @@ JS = r'''
   const officialGrid=document.getElementById('preferBooks'),yearGrid=document.getElementById('yearBooks');
   if(officialGrid)new MutationObserver(()=>cleanOfficial()).observe(officialGrid,{childList:true,subtree:true});
   if(yearGrid)new MutationObserver(()=>cleanYear()).observe(yearGrid,{childList:true,subtree:true});
+
+  // Keep category migration immediately after reading focus migration in the same chapter.
+  const shift=document.getElementById('shift'),focus=document.getElementById('focus');
+  if(shift&&focus&&shift.nextElementSibling!==focus)shift.insertAdjacentElement('afterend',focus);
 
   const peak=document.getElementById('clockPeak');
   if(peak){const cards=[...peak.querySelectorAll('.deep-card')];if(cards.length){peak.classList.add('clock-peak-list');cards.forEach((card,i)=>{const time=card.querySelector('b')?.textContent?.trim()||'—',hours=card.querySelector('p')?.textContent?.trim()||'';card.innerHTML=`<span class="clock-peak-rank">${i+1}</span><b>${time}</b><p>${hours}</p>`})}}
@@ -78,7 +85,7 @@ def polish(site_dir: Path = SITE) -> None:
         page = page.replace("</style>", CSS + "\n</style>", 1)
         page = page.replace("</script>", JS + "\n</script>", 1)
         path.write_text(page, encoding="utf-8")
-    print("Pages polish: chapter-local annual views, clean preference cards, short top titles, compact clock peaks, dice-only color")
+    print("Pages polish: annual summary merged into year lens; rhythm and focus layouts aligned")
 
 
 if __name__ == "__main__":
