@@ -8,6 +8,7 @@ on:
       - 'data/**'
       - 'scripts/build_pages_report.py'
       - 'scripts/pages_runtime.py'
+      - 'scripts/pages_public_quotes.py'
       - 'scripts/pages_insights.py'
       - 'scripts/pages_insights_full.py'
       - 'scripts/pages_enrichment.py'
@@ -40,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       WEREAD_PAGES_INCLUDE_PRIVATE: '1'
+      WEREAD_PAGES_INCLUDE_PUBLIC_QUOTES: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -48,7 +50,9 @@ jobs:
         with:
           python-version: '3.13'
       - name: Build full real-data report
-        run: python scripts/pages_runtime.py
+        run: |
+          python scripts/pages_runtime.py
+          python scripts/pages_public_quotes.py
       - name: Validate final Page contract and JS
         run: |
           python scripts/validate_pages_output.py --js-out /tmp/we-read-pages-inline.js
