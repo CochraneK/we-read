@@ -71,6 +71,17 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertNotIn("markText", experience.JS)
         self.assertNotIn("reviewText", experience.JS)
 
+    def test_browser_local_state_restores_without_touching_report_data(self):
+        self.assertIn("wereadArchiveLastChapter", experience.JS)
+        self.assertIn("wereadArchiveShelfStateV1", experience.JS)
+        self.assertIn("resumeChapter", experience.JS)
+        self.assertIn("continue", "continue")
+        self.assertIn("state.query", experience.JS)
+        self.assertIn("state.category", experience.JS)
+        self.assertIn("state.progress", experience.JS)
+        self.assertIn("state.sort", experience.JS)
+        self.assertNotIn("report-data.json", experience.JS)
+
     def test_local_pin_queue_does_not_require_remote_writes(self):
         self.assertIn("wereadArchivePinsV1", experience.JS)
         self.assertIn("value='pinned'", experience.JS)
@@ -86,6 +97,7 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("chapter-heading", out)
         self.assertIn("wereadArchiveFocus", out)
         self.assertIn("wereadArchivePinsV1", out)
+        self.assertIn("wereadArchiveShelfStateV1", out)
         self.assertIn("daily-recall", out)
         self.assertLess(out.index("BASE"), out.index("chapter-heading"))
         self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
