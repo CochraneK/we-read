@@ -7,6 +7,8 @@ already-published bookshelf and merge them into localStorage. No network request
 or WeRead write API is used.
 """
 
+import pages_theme_ui
+
 CSS = r'''
 .shelf-local-actions{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 14px}.shelf-local-btn{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:7px 10px;font:inherit;font-size:10px;cursor:pointer}.shelf-local-btn:hover{border-color:var(--accent2)}.shelf-local-btn:disabled{opacity:.45;cursor:not-allowed}.shelf-local-status{align-self:center;color:var(--muted);font-size:10px}.shelf-import-input{display:none}
 '''
@@ -34,4 +36,4 @@ JS = r'''
 def enhance(template: str) -> str:
     template = template.replace('</style>', CSS + '\n</style>', 1)
     template = template.replace('</script>', JS + '\n</script>', 1)
-    return template
+    return pages_theme_ui.enhance(template)
