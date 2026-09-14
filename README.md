@@ -347,11 +347,37 @@ python scripts/sync_obsidian.py --vault "/path/to/vault"
 
 ### Book → Skill
 
+第一阶段：生成 evidence-backed Skill：
+
 ```bash
 python scripts/book_to_skill.py --book-id "BOOK_ID"
 ```
 
 输出严格区分 source highlight / user review / AI refinement。
+
+第二阶段：把个人证据精炼为 3–7 步可执行方法，但不允许无证据补全：
+
+```bash
+python scripts/build_book_method_brief.py \
+  --context data/analysis/visualization_context.json \
+  --book-id "BOOK_ID" \
+  --output data/analysis/private_lab/book_method_brief.json
+
+python scripts/renderers/book_method_editor.py \
+  --input data/analysis/private_lab/book_method_brief.json \
+  --output data/analysis/private_lab/book_method_editor.html
+```
+
+编辑器导出 refinement JSON 后：
+
+```bash
+python scripts/apply_book_method_refinement.py \
+  --input /path/to/weread-book-method-refinement.json \
+  --output data/analysis/private_lab/book_method.json \
+  --markdown data/analysis/private_lab/book_method.md
+```
+
+每一步必须有 `action + why + evidenceIds`；有 user review 可用时，最终方法至少要引用一条自己的想法。
 
 ### Shelf Organizer
 
@@ -375,7 +401,7 @@ python scripts/plan_shelf_organization.py --strategy hybrid
 | `weread-recall` | Recall / Feynman / spaced review |
 | `weread-blindspot` | Blindspot / Counter Reading |
 | `weread-obsidian` | 安全增量同步 |
-| `weread-book-to-skill` | 单书证据 → reusable Skill |
+| `weread-book-to-skill` | 单书证据 → reusable Skill / 方法 refinement |
 | `weread-organizer` | 本地书架整理 / Booklist plan |
 
 完整生态扫描：[`docs/skill-landscape.md`](docs/skill-landscape.md)
@@ -425,8 +451,9 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 - Advisor / Path live candidate contracts；
 - Semantic brief / evidence gate；
 - Reading Path six-book contract；
+- Book→Skill evidence-backed generation；
+- Book→Skill 3–7 步 method refinement gate；
 - Obsidian USER_EDIT_ZONE；
-- Book→Skill；
 - Shelf Planner；
 - Public Pages artifact validator；
 - Private Lab artifact validator + final JS `node --check`。
@@ -438,11 +465,10 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 核心产品已进入维护阶段。真正还值得做的主要是：
 
 1. 在用户自己的私有环境做一次完整真实数据端到端运行；
-2. Book→Skill 第二阶段：从证据提炼 3–7 步可执行方法；
-3. Blindspot 增加更强反证维度；
-4. 可选的 Recall 私有语义差异分析；
-5. 继续保留 legacy 可复现性，但不再向 `analysis.py` 堆功能；
-6. 如需从 Git 历史彻底移除个人阅读数据，必须单独备份并显式授权后做 history rewrite。
+2. Blindspot 增加更强反证维度；
+3. 可选的 Recall 私有语义差异分析；
+4. 继续保留 legacy 可复现性，但不再向 `analysis.py` 堆功能；
+5. 如需从 Git 历史彻底移除个人阅读数据，必须单独备份并显式授权后做 history rewrite。
 
 `.gitignore` 只能阻止未来新增，不能清除历史提交。
 
@@ -463,7 +489,8 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 - ✅ Reading Path live discovery + semantic stage gate + six-book plan
 - ✅ Blindspot / Counter Reading
 - ✅ Safe Obsidian Sync
-- ✅ Book → Skill
+- ✅ Book → Skill evidence-backed generation
+- ✅ Book → Skill 3–7 step evidence-linked method refinement
 - ✅ Shelf Organizer plan-only
 - ✅ Public/Private artifact validators
 - ✅ Python 3.11 / 3.13 CI
