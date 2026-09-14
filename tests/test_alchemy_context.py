@@ -64,13 +64,16 @@ class AlchemyContextTests(unittest.TestCase):
         self.assertEqual(row["title"], "脑科学")
         self.assertGreater(row["evidence"], 0)
 
-    def test_ambiguous_title_requires_book_id(self):
+    def test_exact_title_wins_but_ambiguous_partial_requires_book_id(self):
         source = {
             "books": [
-                sample_book("a", "思考"),
-                sample_book("b", "思考，快与慢"),
+                sample_book("a", "思考A"),
+                sample_book("b", "思考B"),
+                sample_book("c", "精确书名"),
             ]
         }
+        exact = alchemy.build_context(source, book_title="精确书名")
+        self.assertEqual(exact["books"][0]["bookId"], "c")
         with self.assertRaises(ValueError):
             alchemy.build_context(source, book_title="思考")
 
