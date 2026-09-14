@@ -17,6 +17,7 @@ on:
       - 'scripts/pages_experience_ui.py'
       - 'scripts/pages_command_ui.py'
       - 'scripts/pages_queue_io_ui.py'
+      - 'scripts/validate_pages_output.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -47,6 +48,10 @@ jobs:
           python-version: '3.13'
       - name: Build full real-data report
         run: python scripts/pages_runtime.py
+      - name: Validate final Page contract and JS
+        run: |
+          python scripts/validate_pages_output.py --js-out /tmp/we-read-pages-inline.js
+          node --check /tmp/we-read-pages-inline.js
       - name: Configure Pages
         uses: actions/configure-pages@v6
       - name: Upload static site
