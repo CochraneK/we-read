@@ -1,0 +1,66 @@
+name: template-smoke
+
+on:
+  push:
+    branches: [main, template-bootstrap]
+    paths:
+      - 'template/**'
+      - 'scripts/build_template_site.py'
+      - 'scripts/build_pages_report.py'
+      - 'scripts/pages_*.py'
+      - 'scripts/validate_pages_output.py'
+      - 'scripts/metrics.py'
+      - 'tests/test_template_site.py'
+      - '.github/workflows/template-smoke.yml'
+  pull_request:
+    paths:
+      - 'template/**'
+      - 'scripts/build_template_site.py'
+      - 'scripts/build_pages_report.py'
+      - 'scripts/pages_*.py'
+      - 'scripts/validate_pages_output.py'
+      - 'scripts/metrics.py'
+      - 'tests/test_template_site.py'
+      - '.github/workflows/template-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Build synthetic full-profile template
+        run: |
+          python template/demo_data.py --output /tmp/weread-template-data
+          python scripts/build_template_site.py \
+            --data /tmp/weread-template-data \
+            --output /tmp/weread-template-site \
+            --include-private \
+            --publish-marks
+
+      - name: Validate with production Pages contract
+        run: |
+          python scripts/validate_pages_output.py \
+            --site /tmp/weread-template-site \
+            --data /tmp/weread-template-data \
+            --js-out /tmp/weread-template-inline.js
+          node --check /tmp/weread-template-inline.js
+
+      - name: Run template isolation tests
+        run: |
+          python -m unittest discover -s tests -p 'test_template_site.py' -v
