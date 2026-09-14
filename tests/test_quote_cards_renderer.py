@@ -29,6 +29,8 @@ class QuoteCardsRendererTests(unittest.TestCase):
         self.assertIn("data-set-theme=\"b\"", page)
         self.assertIn("data-set-theme=\"c\"", page)
         self.assertIn("weread://reading?bId=1", page)
+        self.assertIn("index.html?book=1#book-workbench", page)
+        self.assertIn("进入这本书的 Workbench", page)
         self.assertIn("不自动代表你的观点", page)
         self.assertNotIn("fetch(", page)
 
