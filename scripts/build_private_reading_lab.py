@@ -31,10 +31,7 @@ def run_step(args: list[str]) -> None:
 
 def filtered_notes(raw_notes: list, context: dict) -> list[dict]:
     allowed = {str(b.get("bookId") or "") for b in (context.get("books") or []) if isinstance(b, dict)}
-    return [
-        row for row in raw_notes
-        if isinstance(row, dict) and str(row.get("bookId") or "") in allowed
-    ]
+    return [row for row in raw_notes if isinstance(row, dict) and str(row.get("bookId") or "") in allowed]
 
 
 def build_steps(out_dir: Path, *, include_private: bool, with_text: bool, topic: str, book_id: str,
@@ -80,8 +77,44 @@ def build_steps(out_dir: Path, *, include_private: bool, with_text: bool, topic:
     return steps
 
 
+def build_action_steps(out_dir: Path, *, advisor_query: str = "", path_topic: str = "",
+                       path_candidates: Path | None = None, path_confirmed_level: str = "") -> list[tuple[str, list[str]]]:
+    """Build optional live-catalog actions. All catalog calls require WEREAD_API_KEY."""
+    context = out_dir / "visualization_context.json"
+    advisor = out_dir / "advisor_context.json"
+    steps: list[tuple[str, list[str]]] = []
+    if advisor_query:
+        verified = out_dir / "advisor_candidates.json"
+        shortlist = out_dir / "advisor_shortlist.json"
+        steps.extend([
+            ("Advisor Live Candidates", ["scripts/verify_weread_candidates.py", "--context", str(context), "--query", advisor_query, "--output", str(verified)]),
+            ("Advisor Shortlist", ["scripts/build_advisor_shortlist.py", "--advisor", str(advisor), "--verified", str(verified), "--topic", advisor_query, "--output", str(shortlist)]),
+            ("Advisor Report", ["scripts/renderers/advisor_private.py", "--input", str(shortlist), "--output", str(out_dir / "advisor.html")]),
+        ])
+    if path_topic:
+        path_context = out_dir / "reading_path_context.json"
+        discovery = out_dir / "reading_path_discovery.json"
+        steps.extend([
+            ("Reading Path Context", ["scripts/build_reading_path_context.py", "--advisor", str(advisor), "--topic", path_topic, "--output", str(path_context)]),
+            ("Reading Path Live Discovery", ["scripts/discover_reading_path_candidates.py", "--context", str(context), "--topic", path_topic, "--output", str(discovery)]),
+            ("Reading Path Discovery Report", ["scripts/renderers/reading_path_private.py", "--input", str(discovery), "--output", str(out_dir / "reading_path_discovery.html")]),
+        ])
+        if path_candidates is not None:
+            if not path_confirmed_level:
+                raise ValueError("path_confirmed_level is required when path_candidates is supplied")
+            verified = out_dir / "reading_path_candidates_verified.json"
+            enriched = out_dir / "reading_path_candidates_enriched.json"
+            plan = out_dir / "reading_path_plan.json"
+            steps.extend([
+                ("Reading Path Candidate Verification", ["scripts/verify_weread_candidates.py", "--context", str(context), "--candidates", str(path_candidates), "--output", str(verified)]),
+                ("Reading Path Candidate Info", ["scripts/enrich_weread_candidate_info.py", "--input", str(verified), "--output", str(enriched)]),
+                ("Reading Path Final Plan", ["scripts/build_reading_path_plan.py", "--path-context", str(path_context), "--candidates", str(enriched), "--confirmed-level", path_confirmed_level, "--output", str(plan)]),
+                ("Reading Path Final Report", ["scripts/renderers/reading_path_private.py", "--input", str(plan), "--output", str(out_dir / "reading_path.html")]),
+            ])
+    return steps
+
+
 def write_private_text_assets(out_dir: Path, context_path: Path) -> None:
-    """Build the historical highlight-card branch through the unified privacy allowlist."""
     raw_path = DATA / "weread_notes_export.json"
     if not raw_path.exists():
         raise SystemExit(f"ERROR: missing {raw_path}; run scripts/export_notes.py first")
@@ -96,7 +129,7 @@ def write_private_text_assets(out_dir: Path, context_path: Path) -> None:
 
 
 def render_dashboard(out_dir: Path) -> None:
-    args = [
+    run_step([
         "scripts/renderers/private_lab_final.py",
         "--context", str(out_dir / "visualization_context.json"),
         "--deep", str(out_dir / "deep_notes_context.json"),
@@ -106,8 +139,7 @@ def render_dashboard(out_dir: Path) -> None:
         "--review", str(out_dir / "narrative_review_context.json"),
         "--quote-cards", str(out_dir / "quote_cards.html"),
         "--output", str(out_dir / "index.html"),
-    ]
-    run_step(args)
+    ])
 
 
 def parse_args():
@@ -115,13 +147,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Build the local/private WeRead Reading Lab.")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--include-private", action="store_true", help="Include secret=1 books in the private lab context. Off by default.")
-    parser.add_argument(
-        "--with-text",
-        action="store_true",
-        help="Also build quote library/cards and optional Alchemy assets. Core Search/Recall already contain private evidence text.",
-    )
+    parser.add_argument("--with-text", action="store_true", help="Also build quote cards and optional Alchemy reports. Core lab already contains private evidence text.")
     parser.add_argument("--topic", default="", help="Optional Alchemy topic; requires --with-text.")
     parser.add_argument("--book-id", default="", help="Optional single-book Alchemy context; requires --with-text.")
+    parser.add_argument("--advisor-query", default="", help="Optional live Advisor catalog query. Requires WEREAD_API_KEY.")
+    parser.add_argument("--path-topic", default="", help="Optional Reading Path topic. Live discovery requires WEREAD_API_KEY.")
+    parser.add_argument("--path-candidates", type=Path, default=None, help="Edited candidate JSON with confirmed stage fields; requires --path-topic and --path-confirmed-level.")
+    parser.add_argument("--path-confirmed-level", choices=["", "zero", "beginner", "intermediate", "advanced"], default="")
     parser.add_argument("--review-start", default=f"{today.year}-01-01")
     parser.add_argument("--review-end", default=today.isoformat())
     parser.add_argument("--review-platform", choices=["", "朋友圈", "公众号", "小红书", "视频脚本", "个人日记"], default="")
@@ -132,20 +164,28 @@ def main():
     args = parse_args()
     if (args.topic.strip() or args.book_id.strip()) and not args.with_text:
         raise SystemExit("ERROR: --topic/--book-id require --with-text because Alchemy contains raw evidence")
+    if args.path_candidates and not args.path_topic.strip():
+        raise SystemExit("ERROR: --path-candidates requires --path-topic")
+    if args.path_candidates and not args.path_confirmed_level:
+        raise SystemExit("ERROR: --path-candidates requires --path-confirmed-level")
 
     out_dir = args.output_dir.expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    steps = build_steps(
+    for label, command in build_steps(
+        out_dir, include_private=args.include_private, with_text=args.with_text,
+        topic=args.topic.strip(), book_id=args.book_id.strip(), review_start=args.review_start,
+        review_end=args.review_end, review_platform=args.review_platform,
+    ):
+        print(f"==> {label}")
+        run_step(command)
+
+    for label, command in build_action_steps(
         out_dir,
-        include_private=args.include_private,
-        with_text=args.with_text,
-        topic=args.topic.strip(),
-        book_id=args.book_id.strip(),
-        review_start=args.review_start,
-        review_end=args.review_end,
-        review_platform=args.review_platform,
-    )
-    for label, command in steps:
+        advisor_query=args.advisor_query.strip(),
+        path_topic=args.path_topic.strip(),
+        path_candidates=args.path_candidates.expanduser().resolve() if args.path_candidates else None,
+        path_confirmed_level=args.path_confirmed_level,
+    ):
         print(f"==> {label}")
         run_step(command)
 
@@ -158,7 +198,7 @@ def main():
     render_dashboard(out_dir)
 
     manifest = {
-        "version": 3,
+        "version": 4,
         "private": True,
         "publicPageSafe": False,
         "containsRawEvidence": True,
@@ -166,16 +206,21 @@ def main():
         "includePrivateBooks": bool(args.include_private),
         "includesQuoteCards": bool(args.with_text),
         "includesBrowserLocalRecallHistory": True,
-        "includesAlchemyRawEvidence": bool(args.with_text and (args.topic.strip() or args.book_id.strip())),
         "includesAlchemySynthesisReport": bool(args.with_text and (args.topic.strip() or args.book_id.strip())),
+        "includesAdvisorLiveCatalog": bool(args.advisor_query.strip()),
+        "includesReadingPathDiscovery": bool(args.path_topic.strip()),
+        "includesReadingPathFinalPlan": bool(args.path_candidates),
         "topicAlchemy": args.topic.strip() or None,
         "bookAlchemy": args.book_id.strip() or None,
+        "advisorQuery": args.advisor_query.strip() or None,
+        "pathTopic": args.path_topic.strip() or None,
         "entry": "index.html",
         "privacyNote": "Search/Recall/context artifacts contain mark/review text even without --with-text; keep the entire directory private.",
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(
         f"private-reading-lab: {out_dir / 'index.html'} | quote_cards={args.with_text} "
+        f"advisor_live={bool(args.advisor_query.strip())} path={bool(args.path_topic.strip())} "
         f"raw_evidence=true recall_history=browser-local public_page_safe=false"
     )
 
