@@ -38,7 +38,11 @@ def parse_args():
     parser.add_argument("--alchemy-topic-report", type=Path, default=base.LAB / "alchemy_topic.html")
     parser.add_argument("--alchemy-book-report", type=Path, default=base.LAB / "alchemy_book.html")
     parser.add_argument("--advisor-report", type=Path, default=base.LAB / "advisor.html")
+    parser.add_argument("--advisor-semantic-editor", type=Path, default=base.LAB / "advisor_semantic_editor.html")
+    parser.add_argument("--advisor-semantic-result", type=Path, default=base.LAB / "advisor_semantic.html")
     parser.add_argument("--path-discovery-report", type=Path, default=base.LAB / "reading_path_discovery.html")
+    parser.add_argument("--path-semantic-editor", type=Path, default=base.LAB / "reading_path_semantic_editor.html")
+    parser.add_argument("--path-semantic-result", type=Path, default=base.LAB / "reading_path_semantic.html")
     parser.add_argument("--path-plan-report", type=Path, default=base.LAB / "reading_path.html")
     parser.add_argument("--review-report", type=Path, default=base.LAB / "narrative_review.html")
     parser.add_argument("--output", type=Path, default=base.LAB / "index.html")
@@ -63,7 +67,11 @@ def main():
         "alchemyTopic": args.alchemy_topic_report.exists(),
         "alchemyBook": args.alchemy_book_report.exists(),
         "advisor": args.advisor_report.exists(),
+        "advisorSemanticEditor": args.advisor_semantic_editor.exists(),
+        "advisorSemanticResult": args.advisor_semantic_result.exists(),
         "pathDiscovery": args.path_discovery_report.exists(),
+        "pathSemanticEditor": args.path_semantic_editor.exists(),
+        "pathSemanticResult": args.path_semantic_result.exists(),
         "pathPlan": args.path_plan_report.exists(),
         "review": args.review_report.exists(),
     }
