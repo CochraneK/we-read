@@ -60,6 +60,16 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("e.key==='/'", experience.JS)
         self.assertIn("IntersectionObserver", experience.JS)
         self.assertIn("reading-progress", experience.CSS)
+        self.assertIn("skip-link", experience.CSS)
+        self.assertIn("content-visibility:auto", experience.CSS)
+
+    def test_daily_resurfacing_uses_recall_metadata_only(self):
+        self.assertIn("daily-recall", experience.CSS)
+        self.assertIn("recallPool", experience.JS)
+        self.assertIn("noteCount", experience.JS)
+        self.assertIn("daysSinceLastNote", experience.JS)
+        self.assertNotIn("markText", experience.JS)
+        self.assertNotIn("reviewText", experience.JS)
 
     def test_local_pin_queue_does_not_require_remote_writes(self):
         self.assertIn("wereadArchivePinsV1", experience.JS)
@@ -76,6 +86,7 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("chapter-heading", out)
         self.assertIn("wereadArchiveFocus", out)
         self.assertIn("wereadArchivePinsV1", out)
+        self.assertIn("daily-recall", out)
         self.assertLess(out.index("BASE"), out.index("chapter-heading"))
         self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
 
