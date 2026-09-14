@@ -25,6 +25,8 @@ REQUIRED_HTML_MARKERS = (
     "wereadArchivePinsV1",
     "wereadArchiveShelfStateV1",
     "we-read-local-pins",
+    "themeToggle",
+    "wereadArchiveThemeV1",
 )
 RAW_KEYS = {"text", "content", "markText", "reviewText"}
 
@@ -116,7 +118,6 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
     notes = load_json(data / "weread_notes_export.json", [])
     checked = 0
     for body in iter_raw_bodies(notes):
-        # Long exact substrings are a high-signal accidental-publication check.
         needle = body[:160]
         if needle in html or needle in report_text:
             raise ValueError("raw mark/review body leaked into Pages output")
