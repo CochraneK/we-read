@@ -48,7 +48,7 @@ class PrivateReadingLabTests(unittest.TestCase):
         self.assertIn("build_deep_notes_context.py", flattened)
         self.assertNotIn("analysis.py", flattened)
 
-    def test_text_mode_adds_both_alchemy_modes(self):
+    def test_text_mode_builds_alchemy_context_synthesis_and_report(self):
         with tempfile.TemporaryDirectory() as td:
             out = Path(td)
             steps = lab.build_steps(
@@ -63,9 +63,13 @@ class PrivateReadingLabTests(unittest.TestCase):
             )
         labels = [label for label, _ in steps]
         self.assertIn("Alchemy Topic Context", labels)
+        self.assertIn("Alchemy Topic Synthesis", labels)
+        self.assertIn("Alchemy Topic Report", labels)
         self.assertIn("Alchemy Book Context", labels)
+        self.assertIn("Alchemy Book Synthesis", labels)
+        self.assertIn("Alchemy Book Report", labels)
 
-    def test_dashboard_renderer_is_the_final_entrypoint(self):
+    def test_dashboard_renderer_is_the_final_composed_entrypoint(self):
         with tempfile.TemporaryDirectory() as td:
             out = Path(td)
             captured = []
@@ -73,7 +77,7 @@ class PrivateReadingLabTests(unittest.TestCase):
                 lab.render_dashboard(out)
         self.assertEqual(len(captured), 1)
         cmd = captured[0]
-        self.assertIn("scripts/renderers/private_lab.py", cmd)
+        self.assertIn("scripts/renderers/private_lab_final.py", cmd)
         self.assertIn(str(out / "visualization_context.json"), cmd)
         self.assertIn(str(out / "deep_notes_context.json"), cmd)
         self.assertIn(str(out / "recall_queue.json"), cmd)
