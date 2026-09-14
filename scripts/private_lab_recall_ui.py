@@ -39,7 +39,21 @@ $('importRecallHistory').onclick=()=>$('recallHistoryFile').click();$('recallHis
 '''
 
 
+def _repair_base_recall_js(page: str) -> str:
+    """Fix the base f-string's literal chapter separator before composition.
+
+    The base renderer historically embedded ``'\n\n章节：'`` in a Python
+    triple-quoted string, which becomes a literal newline inside a JavaScript
+    single-quoted expression. Keep the base renderer stable for now and repair
+    the rendered artifact here so the composed HTML always passes node --check.
+    """
+    broken = "x.chapter?'\n\n章节：'+esc(x.chapter):''"
+    fixed = "x.chapter?'\\n\\n章节：'+esc(x.chapter):''"
+    return page.replace(broken, fixed)
+
+
 def augment(page: str) -> str:
+    page = _repair_base_recall_js(page)
     if 'wereadPrivateRecallHistoryV1' in page:
         return page
     page = page.replace('</style>', CSS + '\n</style>', 1)
