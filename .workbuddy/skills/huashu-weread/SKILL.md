@@ -5,127 +5,150 @@ description: 微信读书高阶顾问。在底层 weread skill 的原子 API 之
 
 # huashu-weread-advisor
 
-把原子的微信读书 API 变成一个真正读懂你的读书顾问。
+把原子的微信读书 API 变成一个真正读懂阅读证据的读书顾问。
 
 ## 定位
 
-底层 weread skill 提供原子接口（搜索、书架、笔记、点评、推荐、阅读统计），本 skill 在其之上做**工作流编排**，把原始数据转成对用户有消费价值的产出。
+底层 weread skill 提供搜索、书架、笔记、点评、推荐、阅读统计等原子接口；本 skill 负责工作流编排，把数据转成有证据的推荐、学习路径、笔记提炼和阅读复盘。
 
-## 前置依赖
+## 前置依赖与版本规则
 
-- 必须先有 `WEREAD_API_KEY` 环境变量（在用户 shell 中 export）
-- 所有 API 调用走 `POST https://i.weread.qq.com/api/agent/gateway`
-- 请求 body 必须带 `skill_version` 字段——**值的权威来源**：`~/.claude/skills/weread/SKILL.md` 顶部 frontmatter 的 `version` 字段（当前 `1.0.3`，会变；别从 prompt 或老模板里抄）
-- 接口文档和参数详情见底层 weread skill：`~/.claude/skills/weread/SKILL.md`
+- 需要 `WEREAD_API_KEY` 环境变量。
+- API 走 `POST https://i.weread.qq.com/api/agent/gateway`。
+- 请求 body 必须带 `skill_version`。
+- **版本值不要从本文件、旧 prompt 或示例代码硬抄。**如果本机安装了官方 weread skill，以其 `SKILL.md` frontmatter 的 `version` 为权威；本仓库当前 API 脚本基线为 `1.0.4`，未来仍可能升级。
+- 收到 `upgrade_info` 时必须停止当前步骤、按服务端提示升级后重试，不能静默忽略。
 
-## 核心方法论（所有 workflow 共享）
+## 核心方法论
 
-### 1. 书架和笔记是两个数据源，必须交叉
+### 1. 书架、笔记、进度、最近活动必须交叉
 
-| 数据源 | 接口 | 揭示什么 |
-|--------|------|---------|
-| 书架 | `/shelf/sync` | 用户**主动分类**的兴趣方向 + 加入了什么 |
-| 笔记 | `/user/notebooks` | 用户**真读过**的书 + 读得多深（笔记条数） |
-| 进度 | `/book/getprogress` | 某本书读到哪、累计读了多久 |
-| 统计 | `/readdata/detail` | 周/月/年阅读时长、天数、主题偏好 |
+| 数据源 | 主要接口 | 揭示什么 |
+|---|---|---|
+| 书架 | `/shelf/sync` | 主动收藏/分类的兴趣方向 |
+| 笔记 | `/user/notebooks` | 真正形成阅读证据的书与深度 |
+| 进度 | `/book/getprogress` | 当前进度、累计时长 |
+| 统计 | `/readdata/detail` | 周/月/年节律与官方偏好 |
 
-**关键洞察**：很多书在书架但没动，很多书没在书架（借/试读）但深读了。只看书架会漏掉重要信号。
+关键点：书架不等于读过；没有放进书架的借阅/试读书也可能形成深读证据。公开文档和示例不要使用可识别个人的真实阅读记录，统一使用匿名或合成示例。
 
-**实战例子**：花叔的 Kandel《追寻记忆的痕迹》27 条笔记，书架的「心理学」分类里根本没列，但其实是他在神经科学领域读得最深的一本。如果只看书架做推荐，会误判他的真实知识地图。
+### 2. 最近兴趣和历史书架主题分开
 
-### 2. 「最近读什么」≠「书架主题」
+未指定主题时，可以把 `readUpdateTime` 最近 7/30 天作为优先信号；用户明确指定主题时，**用户主题优先于最近活动**，最近活动只作为次要观察。
 
-用户的当前兴趣可能和书架分类完全不一致。永远用 `readUpdateTime` 倒序看最近 30 天在动什么书，再做推荐。
+### 3. 推荐前验证微信读书当前是否上架
 
-### 3. 推荐必附 weread:// 深度链接
+用 `/store/search` 验证。上架后再给 `weread://reading?bId={bookId}`；未上架时明确说明并提供合法替代路径。绝不推荐盗版来源。
 
-`weread://reading?bId={bookId}` 让用户一键打开。链接格式详见底层 weread skill 的「深度链接（URL Schema）」章节。
+### 4. 推荐必须解释证据
 
-### 4. 推荐前必须验证微信读书是否上架
+每本候选至少说明：
 
-用 `/store/search` 搜确认。上架的附 weread:// 链接，不上架的明确告诉用户合法替代路径（购买纸质/英文版/作者公开课/图书馆）。**绝不推盗版资源**。
+- 基于哪些已读/深读证据；
+- 要补哪个知识缺口；
+- 是否已经在书架或已经读过；
+- 是否在微信读书当前上架。
 
-### 5. 输出走花叔语言风格
+## 确定性事实层
 
-- 不堆砌、不破折号（全文 ≤ 2 处）、人味重
-- 用「」不用""
-- 不用「首先/其次/综上」这类 AI 结构词
-- 不用「说白了/简单来说/换句话说」
-- markdown 不过度加粗
-- 详见 `/04-写作参考/SHARED-RULES.md`
+不要每次从原始 JSON 临时拼判断。本仓库已经把部分共用判断做成稳定 context：
+
+```bash
+python scripts/build_visualization_context.py
+python scripts/build_advisor_context.py
+```
+
+见：
+
+- [`shared/advisor-context.md`](shared/advisor-context.md)
+- `schemas/advisor_context.schema.json`
+
+Path 的起点判断另有：
+
+```bash
+python scripts/build_reading_path_context.py --topic "主题" --keywords "别名1,别名2"
+```
+
+见 [`shared/reading-path-context.md`](shared/reading-path-context.md)。
+
+这些 context **只提供事实与流程契约，不直接推荐书**。
 
 ## 检查点设计原则
 
-所有 workflow 必须在「分叉影响输出本质」的地方插入用户确认 gate，防止 AI 默认值跑偏：
+只在“会改变输出本质”的分叉要求用户确认：
 
-- **推荐数量分叉**：advisor 推 3 本 vs 8 本完全不同的体验，不要默认 5 本，先问
-- **平台语气分叉**：复盘文章发朋友圈/公众号/小红书/视频脚本语气差很多，写前必须确认
-- **段位判断分叉**：path workflow 把「我以为你是入门」的判断给用户看，让他确认或纠正
-- **数据量分叉**：alchemy 跨主题模式拉出 50+ 划线时，先汇总议题让用户选子集，不要默认全聚
-- **未上架处理分叉**：推荐里要不要包含未上架的书（用户可能只想要点开就能读的）
+- Advisor 推荐数量；
+- Path 起点段位；
+- Alchemy 大量证据时的主题范围；
+- Review 的发布平台/语气；
+- 是否允许推荐未上架书。
 
-检查点不是「每步都问」。日常小决策（哪本放第一梯队、用什么动词）AI 自己定，不要打扰用户。规则是：**只在选项影响输出本质时问**。
-
-如果用户原始 prompt 已经明确指定（「推 3 本上架的发公众号」），所有相关检查点都跳过。
+如果用户原始请求已经给出答案，跳过对应 gate。不要为日常小决策反复打断用户。
 
 ## 子命令路由
 
-| 用户说什么 | 走哪个 workflow |
-|-----------|----------------|
-| 推荐书 / 下一本读啥 / 不知道读啥 / 想读 X 方向 | [advisor.md](workflows/advisor.md) |
-| 想搞懂 X 这个领域 / 系统学习 X / 从零入门 X | [path.md](workflows/path.md) |
-| 整理我的笔记 / 这本书我记住了啥 / 提炼这个主题的划线 | [alchemy.md](workflows/alchemy.md) |
-| 我今年读了什么 / 季度复盘 / 年度盘点 / 写一篇复盘 | [review.md](workflows/review.md) |
-| 我现在在读哪本 / 最近在读啥 | 轻量直答（见下方） |
+| 用户意图 | Workflow |
+|---|---|
+| 推荐书 / 下一本读啥 / 想读 X 方向 | [`workflows/advisor.md`](workflows/advisor.md) |
+| 系统学习 X / 从零入门 X | [`workflows/path.md`](workflows/path.md) |
+| 整理笔记 / 这本书记住了什么 / 提炼主题 | [`workflows/alchemy.md`](workflows/alchemy.md) |
+| 年度/季度阅读复盘 / 写复盘文章 | [`workflows/review.md`](workflows/review.md) |
+| 最近在读哪本 | 轻量直答 |
 
-### 轻量直答：「我现在在读哪本」
+### 轻量直答：最近在读什么
 
-不走 workflow，直接：
-1. `/shelf/sync` 拿全书架
-2. 按 `readUpdateTime` 倒序取 top 5
-3. 用最新那本调 `/book/getprogress` 拿章节/进度/累计时长
-4. 一句话回复「你正在读 X，已到第 N 章，进度 X%，累计读了 X 小时」，附 weread:// 链接
-5. 顺带说一句最近一周在读的其他几本，看出主题倾向
+1. `/shelf/sync` 拉书架；
+2. 按 `readUpdateTime` 倒序；
+3. 最新书调 `/book/getprogress`；
+4. 用自然语言展示章节/进度/累计时长；
+5. 附 weread 深链，并可补充最近一周的其他活跃书。
 
-## 共享子模块
+## 共享模块
 
-- [shared/knowledge-map.md](shared/knowledge-map.md)：怎么读懂一个人的知识地图（三个数据源 × 三种交叉信号）
-- [shared/shelf-cross-notes.md](shared/shelf-cross-notes.md)：书架 + 笔记交叉分析的 Python 代码模板和主题关键词组
+- [`shared/knowledge-map.md`](shared/knowledge-map.md)：知识地图与交叉信号；
+- [`shared/shelf-cross-notes.md`](shared/shelf-cross-notes.md)：书架 + 笔记交叉分析模板；
+- [`shared/advisor-context.md`](shared/advisor-context.md)：确定性 Advisor Context；
+- [`shared/reading-path-context.md`](shared/reading-path-context.md)：Path 起点与阶段契约。
 
-## 示例
+## API 异常与边界
 
-- [examples/advisor-neuroscience.md](examples/advisor-neuroscience.md)：花叔「神经科学如何更进一步」案例的完整复盘，含步骤、输出、为什么这样推
+| 场景 | 处理 |
+|---|---|
+| `WEREAD_API_KEY` 缺失 | 明确报错并停止 |
+| API `errcode != 0` | 告知错误，最多重试一次；仍失败则停止当前 workflow |
+| 返回 `upgrade_info` | 升级 skill 后重试，不得忽略 |
+| `/user/notebooks` `hasMore=true` | 按 `lastSort` 分页，参数平铺 |
+| notebooks 为空 | 只能基于书架猜兴趣，并明确降低置信度 |
+| 书架为空 | 不走 advisor/review/alchemy；可从 path 零基础规划 |
+| `readUpdateTime=0` | 视为未打开，不进入最近活动 |
+| 指名书搜不到 | 去标点/副标题模糊搜，仍失败则给候选让用户确认 |
+| 主题过宽 | 先细化主题 |
+| 主题过窄 | 明确平台覆盖有限，可组合纸质/其他合法来源 |
 
-## 异常与边界条件
+### `/store/search` 响应解析
 
-实操常遇异常。以下为全局通用 fallback，所有 workflow 共享。workflow 各自的特殊异常在各自文档末尾。
+不要假设顶层是 `books[]`。实际按 section 返回 `results[]`；电子书候选在对应 section 的 `books[*].bookInfo`。多候选时优先作者完全匹配，再考虑阅读人数；无法可靠消歧时应让用户确认。
 
-| 场景 | 触发条件 | 处理动作 |
-|------|---------|---------|
-| `WEREAD_API_KEY` 未设置 | 环境变量不存在或不是 `wrk-` 开头 | 报错：「请先 export WEREAD_API_KEY=<你的apikey>，从微信读书后台获取」，终止 |
-| API 返回 `errcode != 0` | 接口报错 | 显示中文错误信息，重试 1 次；仍失败告知用户并停止当前 workflow |
-| 接口返回 `upgrade_info` | 服务端要求 skill 版本升级 | 暂停当前操作，按 `upgrade_info.message` 完成升级后重试，**不得忽略** |
-| **`/store/search` 响应解析** | 解析返回 JSON | 顶层不是 `books[]`！实际结构是 `results[]`，按 section 分类。取上架：`results[?title=='电子书'].books[*].bookInfo`；取未上架：`title=='待上架'`。每本书的 bookId 在 `bookInfo.bookId`。**别用 `res.get('books', [])`，会全部 0 结果** |
-| `/store/search` 多候选 | 同关键词返回 ≥ 3 本候选 | 默认取 `readingCount` 最高且**作者完全匹配**的（作者错位视同零结果，避免「Co-Intelligence」误命中「Collaborative Intelligence」类似的坑），**明确告知用户**「我用了《X》这本 by Y，bookId=Z，如果不对告诉我」 |
-| `/store/search` 零结果 | 完全搜不到 + 关键词调整 + 作者过滤后仍零 | 标记为「未上架」，按 advisor 的「合法替代路径」规则处理，**绝不推盗版** |
-| notebooks 完全空 | 新用户 / 从未做笔记 | 退化：仅用 `/shelf/sync` 推断，但**明确告知用户**「你没做过笔记，我只能用书架猜兴趣，准度会差一些」 |
-| 书架完全空 | 全新用户 | 不走 advisor / review / alchemy，建议先读几本；或直接进 path workflow 从零规划 |
-| 接口分页未拉完 | `/user/notebooks` 有 `hasMore` | 用 `lastSort` 继续翻页（参数平铺，**不要包在 `params` 里**）；累计 > 500 本时给用户警告 |
-| `readUpdateTime` = 0 | 加入书架但从未打开 | 当作「未读」，不纳入「最近活跃」排序，但仍计入「书架有但没动」 |
-| 用户给的书名搜不到 | alchemy / 任何指名书的场景 | 先模糊搜（去标点/去副标题）；仍不到给候选清单让用户选 |
-| 主题词过宽或过窄 | 「商业」「人文」太宽；冷门词太窄 | 过宽：请用户细化方向；过窄：告知微信读书覆盖薄，建议组合纸质/Kindle |
+## 数据展示规范
 
-**原则**：异常先告知用户，再按规则处理；绝不静默跳过或静默失败；接口报错的具体含义看底层 weread skill 的 `references/` 文档。
+- Unix 时间戳 → `YYYY-MM-DD`；
+- 秒 → “X 小时 Y 分钟”；
+- 进度 → `X%`；
+- 不向用户裸露无意义的 bookId；优先 weread 深链；
+- marks 是保存的原文，不自动当成用户观点；reviews 才是用户自己的想法证据；
+- 公开 Page 不发布原始划线/想法正文。
 
-## 数据展示规范（强制）
+## 输出风格
 
-所有 workflow 输出给用户时遵守：
-
-- **Unix 时间戳**（`readUpdateTime` / `finishTime` / `createTime` 等）→ 转 `YYYY-MM-DD`，禁止直接展示数字
-- **阅读时长字段**单位是秒 → 转「X 小时 Y 分钟」，零小时时只写分钟
-- **进度字段**展示为 `X%`
-- **bookId** 在用户面前不出现裸数字，要么变成 weread:// 链接，要么藏在 markdown 链接里
+保持自然、克制、有依据。避免堆砌结构词和无证据断言。风格要求不能覆盖事实边界：当证据不足时直接说不足。
 
 ## 调用约定
 
-无论走哪个 workflow，第一步都是先读 `SKILL.md` 本文件 + 对应 workflow 文件 + `shared/knowledge-map.md`，然后才开始调 API。不要凭印象做推荐，所有推荐必须有数据支撑。
+无论走哪个 workflow，都先读：
+
+1. 本 `SKILL.md`；
+2. 对应 workflow；
+3. `shared/knowledge-map.md`；
+4. 若已有对应 deterministic context，优先消费 context 而不是重新临时计算。
+
+推荐、路径、总结和复盘都必须可追溯到数据证据；不要凭印象补书、补观点或补用户偏好。
