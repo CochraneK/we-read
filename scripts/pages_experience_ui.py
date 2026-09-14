@@ -18,8 +18,9 @@ body:before{content:"";position:fixed;inset:0 0 auto 0;height:3px;background:var
 
 JS = r'''
 (()=>{
-  const mainGrid=[...document.querySelectorAll('section.grid')].find(g=>g.querySelector(':scope > article'));
-  if(!mainGrid)return;
+  const rhythmCard=document.getElementById('rhythm');
+  const mainGrid=rhythmCard?.parentElement;
+  if(!mainGrid||!mainGrid.classList.contains('grid'))return;
 
   // Give legacy anonymous cards stable anchors before reordering them.
   const idByTitle={
