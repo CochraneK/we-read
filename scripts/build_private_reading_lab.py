@@ -93,35 +93,57 @@ def build_steps(out_dir: Path, *, include_private: bool, with_text: bool, topic:
 
 
 def build_action_steps(out_dir: Path, *, advisor_query: str = "", path_topic: str = "",
-                       path_candidates: Path | None = None, path_confirmed_level: str = "") -> list[tuple[str, list[str]]]:
-    """Build optional live-catalog actions. All catalog calls require WEREAD_API_KEY."""
+                       path_candidates: Path | None = None, path_confirmed_level: str = "",
+                       advisor_semantic_annotations: Path | None = None,
+                       path_semantic_annotations: Path | None = None) -> list[tuple[str, list[str]]]:
+    """Build optional live-catalog and semantic-review actions."""
     context = out_dir / "visualization_context.json"
     advisor = out_dir / "advisor_context.json"
     steps: list[tuple[str, list[str]]] = []
     if advisor_query:
         verified = out_dir / "advisor_candidates.json"
         shortlist = out_dir / "advisor_shortlist.json"
+        brief = out_dir / "advisor_semantic_brief.json"
         steps.extend([
             ("Advisor Live Candidates", ["scripts/verify_weread_candidates.py", "--context", str(context), "--query", advisor_query, "--output", str(verified)]),
             ("Advisor Shortlist", ["scripts/build_advisor_shortlist.py", "--advisor", str(advisor), "--verified", str(verified), "--topic", advisor_query, "--output", str(shortlist)]),
             ("Advisor Report", ["scripts/renderers/advisor_private.py", "--input", str(shortlist), "--output", str(out_dir / "advisor.html")]),
+            ("Advisor Semantic Brief", ["scripts/build_candidate_semantic_brief.py", "--input", str(shortlist), "--mode", "advisor", "--topic", advisor_query, "--output", str(brief)]),
+            ("Advisor Semantic Editor", ["scripts/renderers/semantic_brief_private.py", "--input", str(brief), "--output", str(out_dir / "advisor_semantic_editor.html")]),
         ])
+        if advisor_semantic_annotations is not None:
+            applied = out_dir / "advisor_semantic_applied.json"
+            steps.extend([
+                ("Advisor Semantic Gate", ["scripts/apply_candidate_semantics.py", "--input", str(advisor_semantic_annotations), "--output", str(applied)]),
+                ("Advisor Final Semantic Report", ["scripts/renderers/semantic_result_private.py", "--input", str(applied), "--output", str(out_dir / "advisor_semantic.html")]),
+            ])
     if path_topic:
         path_context = out_dir / "reading_path_context.json"
         discovery = out_dir / "reading_path_discovery.json"
+        path_brief = out_dir / "reading_path_semantic_brief.json"
         steps.extend([
             ("Reading Path Context", ["scripts/build_reading_path_context.py", "--advisor", str(advisor), "--topic", path_topic, "--output", str(path_context)]),
             ("Reading Path Live Discovery", ["scripts/discover_reading_path_candidates.py", "--context", str(context), "--topic", path_topic, "--output", str(discovery)]),
             ("Reading Path Discovery Report", ["scripts/renderers/reading_path_private.py", "--input", str(discovery), "--output", str(out_dir / "reading_path_discovery.html")]),
+            ("Reading Path Semantic Brief", ["scripts/build_candidate_semantic_brief.py", "--input", str(discovery), "--mode", "path", "--topic", path_topic, "--output", str(path_brief)]),
+            ("Reading Path Semantic Editor", ["scripts/renderers/semantic_brief_private.py", "--input", str(path_brief), "--output", str(out_dir / "reading_path_semantic_editor.html")]),
         ])
-        if path_candidates is not None:
+        semantic_source = path_candidates
+        if path_semantic_annotations is not None:
+            semantic_applied = out_dir / "reading_path_semantic_applied.json"
+            steps.extend([
+                ("Reading Path Semantic Gate", ["scripts/apply_candidate_semantics.py", "--input", str(path_semantic_annotations), "--output", str(semantic_applied)]),
+                ("Reading Path Semantic Result", ["scripts/renderers/semantic_result_private.py", "--input", str(semantic_applied), "--output", str(out_dir / "reading_path_semantic.html")]),
+            ])
+            semantic_source = semantic_applied
+        if semantic_source is not None:
             if not path_confirmed_level:
-                raise ValueError("path_confirmed_level is required when path_candidates is supplied")
+                raise ValueError("path_confirmed_level is required when finalizing a path")
             verified = out_dir / "reading_path_candidates_verified.json"
             enriched = out_dir / "reading_path_candidates_enriched.json"
             plan = out_dir / "reading_path_plan.json"
             steps.extend([
-                ("Reading Path Candidate Verification", ["scripts/verify_weread_candidates.py", "--context", str(context), "--candidates", str(path_candidates), "--output", str(verified)]),
+                ("Reading Path Candidate Verification", ["scripts/verify_weread_candidates.py", "--context", str(context), "--candidates", str(semantic_source), "--output", str(verified)]),
                 ("Reading Path Candidate Info", ["scripts/enrich_weread_candidate_info.py", "--input", str(verified), "--output", str(enriched)]),
                 ("Reading Path Final Plan", ["scripts/build_reading_path_plan.py", "--path-context", str(path_context), "--candidates", str(enriched), "--confirmed-level", path_confirmed_level, "--output", str(plan)]),
                 ("Reading Path Final Report", ["scripts/renderers/reading_path_private.py", "--input", str(plan), "--output", str(out_dir / "reading_path.html")]),
@@ -168,8 +190,10 @@ def parse_args():
     parser.add_argument("--topic", default="", help="Optional Alchemy topic; requires --with-text.")
     parser.add_argument("--book-id", default="", help="Optional single-book Alchemy context; requires --with-text.")
     parser.add_argument("--advisor-query", default="", help="Optional live Advisor catalog query. Requires WEREAD_API_KEY.")
+    parser.add_argument("--advisor-semantic-annotations", type=Path, default=None, help="Filled Advisor semantic brief exported by the local editor.")
     parser.add_argument("--path-topic", default="", help="Optional Reading Path topic. Live discovery requires WEREAD_API_KEY.")
-    parser.add_argument("--path-candidates", type=Path, default=None, help="Edited candidate JSON with confirmed stage fields; requires --path-topic and --path-confirmed-level.")
+    parser.add_argument("--path-candidates", type=Path, default=None, help="Legacy stage-labelled candidate JSON; semantic annotations are preferred.")
+    parser.add_argument("--path-semantic-annotations", type=Path, default=None, help="Filled Reading Path semantic brief exported by the local editor.")
     parser.add_argument("--path-confirmed-level", choices=["", "zero", "beginner", "intermediate", "advanced"], default="")
     parser.add_argument("--review-start", default=f"{today.year}-01-01")
     parser.add_argument("--review-end", default=today.isoformat())
@@ -181,10 +205,12 @@ def main():
     args = parse_args()
     if (args.topic.strip() or args.book_id.strip()) and not args.with_text:
         raise SystemExit("ERROR: --topic/--book-id require --with-text because Alchemy contains raw evidence")
-    if args.path_candidates and not args.path_topic.strip():
-        raise SystemExit("ERROR: --path-candidates requires --path-topic")
-    if args.path_candidates and not args.path_confirmed_level:
-        raise SystemExit("ERROR: --path-candidates requires --path-confirmed-level")
+    if (args.path_candidates or args.path_semantic_annotations) and not args.path_topic.strip():
+        raise SystemExit("ERROR: path candidates/semantic annotations require --path-topic")
+    if (args.path_candidates or args.path_semantic_annotations) and not args.path_confirmed_level:
+        raise SystemExit("ERROR: final Reading Path requires --path-confirmed-level")
+    if args.advisor_semantic_annotations and not args.advisor_query.strip():
+        raise SystemExit("ERROR: --advisor-semantic-annotations requires --advisor-query")
 
     out_dir = args.output_dir.expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -202,6 +228,8 @@ def main():
         path_topic=args.path_topic.strip(),
         path_candidates=args.path_candidates.expanduser().resolve() if args.path_candidates else None,
         path_confirmed_level=args.path_confirmed_level,
+        advisor_semantic_annotations=args.advisor_semantic_annotations.expanduser().resolve() if args.advisor_semantic_annotations else None,
+        path_semantic_annotations=args.path_semantic_annotations.expanduser().resolve() if args.path_semantic_annotations else None,
     ):
         print(f"==> {label}")
         run_step(command)
@@ -215,7 +243,7 @@ def main():
     render_dashboard(out_dir)
 
     manifest = {
-        "version": 6,
+        "version": 7,
         "private": True,
         "publicPageSafe": False,
         "containsRawEvidence": True,
@@ -223,11 +251,15 @@ def main():
         "includePrivateBooks": bool(args.include_private),
         "includesQuoteCards": bool(args.with_text),
         "includesBrowserLocalRecallHistory": True,
+        "includesRecallAnswerHistory": True,
         "includesAlchemySynthesisReport": bool(args.with_text and (args.topic.strip() or args.book_id.strip())),
         "includesNarrativeReviewDraft": bool(args.review_platform),
         "includesAdvisorLiveCatalog": bool(args.advisor_query.strip()),
+        "includesAdvisorSemanticReview": bool(args.advisor_query.strip()),
+        "includesAdvisorFinalSemanticResult": bool(args.advisor_semantic_annotations),
         "includesReadingPathDiscovery": bool(args.path_topic.strip()),
-        "includesReadingPathFinalPlan": bool(args.path_candidates),
+        "includesReadingPathSemanticReview": bool(args.path_topic.strip()),
+        "includesReadingPathFinalPlan": bool(args.path_candidates or args.path_semantic_annotations),
         "artifactValidation": True,
         "topicAlchemy": args.topic.strip() or None,
         "bookAlchemy": args.book_id.strip() or None,
