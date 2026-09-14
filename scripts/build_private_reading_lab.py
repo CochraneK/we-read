@@ -61,17 +61,22 @@ def build_steps(out_dir: Path, *, include_private: bool, with_text: bool, topic:
         review.extend(["--platform", review_platform])
     steps.append(("Narrative Review Context", review))
 
-    if with_text:
-        if topic:
-            steps.append(("Alchemy Topic Context", [
-                "scripts/build_alchemy_context.py", "--context", str(context), "--topic", topic,
-                "--output", str(out_dir / "alchemy_topic_context.json"),
-            ]))
-        if book_id:
-            steps.append(("Alchemy Book Context", [
-                "scripts/build_alchemy_context.py", "--context", str(context), "--book-id", book_id,
-                "--output", str(out_dir / "alchemy_book_context.json"),
-            ]))
+    if with_text and topic:
+        ctx = out_dir / "alchemy_topic_context.json"
+        syn = out_dir / "alchemy_topic_synthesis.json"
+        steps.extend([
+            ("Alchemy Topic Context", ["scripts/build_alchemy_context.py", "--context", str(context), "--topic", topic, "--output", str(ctx)]),
+            ("Alchemy Topic Synthesis", ["scripts/build_alchemy_synthesis.py", "--input", str(ctx), "--output", str(syn)]),
+            ("Alchemy Topic Report", ["scripts/renderers/alchemy_private.py", "--input", str(syn), "--output", str(out_dir / "alchemy_topic.html")]),
+        ])
+    if with_text and book_id:
+        ctx = out_dir / "alchemy_book_context.json"
+        syn = out_dir / "alchemy_book_synthesis.json"
+        steps.extend([
+            ("Alchemy Book Context", ["scripts/build_alchemy_context.py", "--context", str(context), "--book-id", book_id, "--output", str(ctx)]),
+            ("Alchemy Book Synthesis", ["scripts/build_alchemy_synthesis.py", "--input", str(ctx), "--output", str(syn)]),
+            ("Alchemy Book Report", ["scripts/renderers/alchemy_private.py", "--input", str(syn), "--output", str(out_dir / "alchemy_book.html")]),
+        ])
     return steps
 
 
@@ -92,7 +97,7 @@ def write_private_text_assets(out_dir: Path, context_path: Path) -> None:
 
 def render_dashboard(out_dir: Path) -> None:
     args = [
-        "scripts/renderers/private_lab.py",
+        "scripts/renderers/private_lab_final.py",
         "--context", str(out_dir / "visualization_context.json"),
         "--deep", str(out_dir / "deep_notes_context.json"),
         "--recall", str(out_dir / "recall_queue.json"),
@@ -153,14 +158,16 @@ def main():
     render_dashboard(out_dir)
 
     manifest = {
-        "version": 2,
+        "version": 3,
         "private": True,
         "publicPageSafe": False,
         "containsRawEvidence": True,
         "outputDir": str(out_dir),
         "includePrivateBooks": bool(args.include_private),
         "includesQuoteCards": bool(args.with_text),
+        "includesBrowserLocalRecallHistory": True,
         "includesAlchemyRawEvidence": bool(args.with_text and (args.topic.strip() or args.book_id.strip())),
+        "includesAlchemySynthesisReport": bool(args.with_text and (args.topic.strip() or args.book_id.strip())),
         "topicAlchemy": args.topic.strip() or None,
         "bookAlchemy": args.book_id.strip() or None,
         "entry": "index.html",
@@ -169,7 +176,7 @@ def main():
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(
         f"private-reading-lab: {out_dir / 'index.html'} | quote_cards={args.with_text} "
-        f"raw_evidence=true public_page_safe=false"
+        f"raw_evidence=true recall_history=browser-local public_page_safe=false"
     )
 
 
