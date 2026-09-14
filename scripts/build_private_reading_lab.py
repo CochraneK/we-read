@@ -129,6 +129,7 @@ def write_private_text_assets(out_dir: Path, context_path: Path) -> None:
 
 
 def render_dashboard(out_dir: Path) -> None:
+    output = out_dir / "index.html"
     run_step([
         "scripts/renderers/private_lab_final.py",
         "--context", str(out_dir / "visualization_context.json"),
@@ -138,8 +139,9 @@ def render_dashboard(out_dir: Path) -> None:
         "--blindspot", str(out_dir / "blindspot_context.json"),
         "--review", str(out_dir / "narrative_review_context.json"),
         "--quote-cards", str(out_dir / "quote_cards.html"),
-        "--output", str(out_dir / "index.html"),
+        "--output", str(output),
     ])
+    run_step(["scripts/validate_private_lab_output.py", "--html", str(output)])
 
 
 def parse_args():
@@ -194,11 +196,11 @@ def main():
         print("==> Quote Library + Cards")
         write_private_text_assets(out_dir, context_path)
 
-    print("==> Interactive Private Lab")
+    print("==> Interactive Private Lab + validation")
     render_dashboard(out_dir)
 
     manifest = {
-        "version": 4,
+        "version": 5,
         "private": True,
         "publicPageSafe": False,
         "containsRawEvidence": True,
@@ -210,6 +212,7 @@ def main():
         "includesAdvisorLiveCatalog": bool(args.advisor_query.strip()),
         "includesReadingPathDiscovery": bool(args.path_topic.strip()),
         "includesReadingPathFinalPlan": bool(args.path_candidates),
+        "artifactValidation": True,
         "topicAlchemy": args.topic.strip() or None,
         "bookAlchemy": args.book_id.strip() or None,
         "advisorQuery": args.advisor_query.strip() or None,
@@ -221,7 +224,7 @@ def main():
     print(
         f"private-reading-lab: {out_dir / 'index.html'} | quote_cards={args.with_text} "
         f"advisor_live={bool(args.advisor_query.strip())} path={bool(args.path_topic.strip())} "
-        f"raw_evidence=true recall_history=browser-local public_page_safe=false"
+        f"validated=true raw_evidence=true recall_history=browser-local public_page_safe=false"
     )
 
 
