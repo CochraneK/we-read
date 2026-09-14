@@ -3,23 +3,9 @@
 """Publish a bounded rotating sample of short WeRead highlight excerpts.
 
 Every non-empty mark enters the build-time candidate pool, but the public static
-artifact contains only a small attributed sample. This distinction matters:
-GitHub Pages must not ship the complete raw highlight corpus merely to hide most
-of it in client-side JavaScript.
-
-Privacy authorization and copyright/distribution boundaries are separate:
-
-- marks/highlights only; user reviews are never published here;
-- every non-empty mark can be sampled, but at most one excerpt per book per build;
-- a hard character cap per excerpt;
-- a hard total-card cap;
-- bibliographic attribution and a WeRead deep link;
-- no full long highlight bodies;
-- the public browser receives only the selected sample, never the full pool.
-
-Enable at deploy time with ``WEREAD_PAGES_INCLUDE_PUBLIC_QUOTES=1``.
-Use ``WEREAD_PUBLIC_QUOTES_SEED`` to reproduce a particular sample. Without it,
-the UTC date is used so scheduled daily builds rotate naturally.
+artifact contains only a small attributed sample. The browser can optionally
+re-sample from the owner's local IndexedDB copy of the full corpus after the
+owner imports it through the hidden search UI.
 """
 from __future__ import annotations
 
@@ -27,6 +13,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
+from urllib.parse import quote
 import html
 import json
 import os
@@ -63,6 +50,11 @@ def book_id(row: dict) -> str:
 
 def clean_text(value) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def web_search_link(title: str) -> str:
+    title = clean_text(title)
+    return f"https://weread.qq.com/web/search/books?keyword={quote(title)}" if title else "https://weread.qq.com/"
 
 
 def excerpt_text(text: str, max_chars: int = MAX_CHARS) -> tuple[str, bool]:
@@ -130,7 +122,7 @@ def build_public_quotes(
                 "excerpt": excerpt,
                 "truncated": bool(truncated),
                 "sourceKind": "mark",
-                "deepLink": f"weread://reading?bId={bid}",
+                "webLink": web_search_link(title),
             })
 
     chosen_seed = sample_seed(seed)
@@ -171,11 +163,11 @@ def build_public_quotes(
 
 
 CSS = r'''
-.public-quote-stage{position:relative;border:1px solid var(--line);border-radius:24px;min-height:270px;overflow:hidden;background:color-mix(in srgb,var(--paper) 92%,var(--bg));display:grid;place-items:center;padding:28px}.public-quote-slide{max-width:820px;width:100%;text-align:center;transition:opacity .3s ease,transform .3s ease}.public-quote-slide.is-changing{opacity:.1;transform:translateY(5px)}.public-quote-slide blockquote{font-family:ui-serif,"Songti SC","STSong",serif;font-size:clamp(20px,2.5vw,34px);line-height:1.75;margin:0 0 24px}.public-quote-slide .q-meta{color:var(--muted);font-size:12px}.public-quote-slide .q-meta b{color:var(--ink);font-size:13px}.public-quote-slide a{color:var(--accent);text-decoration:none}.public-quote-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}.public-quote-controls button{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:7px 11px;cursor:pointer}.public-quote-counter{color:var(--muted);font-size:11px;min-width:72px;text-align:center}.public-quote-policy{border-left:4px solid var(--accent3);padding-left:13px;color:var(--muted);font-size:12px;margin:0 0 16px}@media(prefers-reduced-motion:reduce){.public-quote-slide{transition:none}}@media(max-width:560px){.public-quote-stage{min-height:235px;padding:20px}.public-quote-slide blockquote{font-size:20px}}
+.public-quote-stage{position:relative;border:1px solid var(--line);border-radius:24px;min-height:270px;overflow:hidden;background:color-mix(in srgb,var(--paper) 92%,var(--bg));display:grid;place-items:center;padding:28px}.public-quote-slide{max-width:820px;width:100%;text-align:center;transition:opacity .3s ease,transform .3s ease}.public-quote-slide.is-changing{opacity:.1;transform:translateY(5px)}.public-quote-slide blockquote{font-family:ui-serif,"Songti SC","STSong",serif;font-size:clamp(20px,2.5vw,34px);line-height:1.75;margin:0 0 24px}.public-quote-slide .q-meta{color:var(--muted);font-size:12px}.public-quote-slide .q-meta b{color:var(--ink);font-size:13px}.public-quote-slide a{color:var(--accent);text-decoration:none}.public-quote-controls{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}.public-quote-controls button{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:7px 11px;cursor:pointer}.public-quote-controls .symbol-btn{width:34px;height:34px;padding:0;display:grid;place-items:center;font-size:16px}.public-quote-counter{color:var(--muted);font-size:11px;min-width:72px;text-align:center}.public-quote-policy{border-left:4px solid var(--accent3);padding-left:13px;color:var(--muted);font-size:12px;margin:0 0 16px}@media(prefers-reduced-motion:reduce){.public-quote-slide{transition:none}}@media(max-width:560px){.public-quote-stage{min-height:235px;padding:20px}.public-quote-slide blockquote{font-size:20px}}
 '''
 
 JS = r'''
-(()=>{const root=document.getElementById('publicQuotePlayer');if(!root)return;let rows=[];try{rows=JSON.parse(root.dataset.quotes||'[]')}catch(_){rows=[]}if(!rows.length)return;for(let i=rows.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rows[i],rows[j]]=[rows[j],rows[i]]}const slide=document.getElementById('publicQuoteSlide'),counter=document.getElementById('publicQuoteCounter'),toggle=document.getElementById('publicQuoteToggle');let index=0,timer=null,playing=true;const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function paint(){const q=rows[index];slide.classList.add('is-changing');setTimeout(()=>{const meta=[q.title?`<b>《${esc(q.title)}》</b>`:'',esc(q.author||''),esc(q.chapter||'')].filter(Boolean).join(' · ');slide.innerHTML=`<blockquote>“${esc(q.excerpt||'')}”</blockquote><div class="q-meta">${meta}${q.deepLink?`<br><a href="${esc(q.deepLink)}">在微信读书打开 ↗</a>`:''}</div>`;counter.textContent=`${index+1} / ${rows.length}`;slide.classList.remove('is-changing')},120)}function next(step=1){index=(index+step+rows.length)%rows.length;paint()}function randomOne(){if(rows.length<2){paint();return}let n=index;while(n===index)n=Math.floor(Math.random()*rows.length);index=n;paint()}function stop(){if(timer)clearInterval(timer);timer=null}function start(){stop();if(playing)timer=setInterval(()=>next(1),7000)}document.getElementById('publicQuotePrev')?.addEventListener('click',()=>{next(-1);start()});document.getElementById('publicQuoteNext')?.addEventListener('click',()=>{next(1);start()});document.getElementById('publicQuoteRandom')?.addEventListener('click',()=>{randomOne();start()});toggle?.addEventListener('click',()=>{playing=!playing;toggle.textContent=playing?'暂停':'播放';toggle.setAttribute('aria-pressed',String(!playing));playing?start():stop()});paint();start();})();
+(()=>{const root=document.getElementById('publicQuotePlayer');if(!root)return;let rows=[];try{rows=JSON.parse(root.dataset.quotes||'[]')}catch(_){rows=[]}if(!rows.length)return;function shuffle(list){for(let i=list.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[list[i],list[j]]=[list[j],list[i]]}return list}shuffle(rows);const slide=document.getElementById('publicQuoteSlide'),counter=document.getElementById('publicQuoteCounter'),toggle=document.getElementById('publicQuoteToggle');let index=0,timer=null,playing=true;const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const searchLink=title=>'https://weread.qq.com/web/search/books?keyword='+encodeURIComponent(String(title||'').trim());function paint(){const q=rows[index];slide.classList.add('is-changing');setTimeout(()=>{const meta=[q.title?`<b>《${esc(q.title)}》</b>`:'',esc(q.author||''),esc(q.chapter||'')].filter(Boolean).join(' · '),link=q.webLink||searchLink(q.title);slide.innerHTML=`<blockquote>“${esc(q.excerpt||'')}”</blockquote><div class="q-meta">${meta}${q.title?`<br><a href="${esc(link)}" target="_blank" rel="noopener">在微信读书网页版查找 ↗</a>`:''}</div>`;counter.textContent=`${index+1} / ${rows.length}`;slide.classList.remove('is-changing')},120)}function next(step=1){index=(index+step+rows.length)%rows.length;paint()}function randomOne(){if(rows.length<2){paint();return}let n=index;while(n===index)n=Math.floor(Math.random()*rows.length);index=n;paint()}function stop(){if(timer)clearInterval(timer);timer=null}function start(){stop();if(playing)timer=setInterval(()=>next(1),7000)}function setRows(nextRows){if(!Array.isArray(nextRows)||!nextRows.length)return false;rows=shuffle([...nextRows]);index=0;paint();start();return true}async function resampleLocal(){const api=window.WeReadHiddenEvidenceSearch;if(!api?.sampleMarks){return}const fresh=await api.sampleMarks(48,90);if(!fresh.length){api.open?.();return}setRows(fresh)}window.WeReadQuotePlayer={setRows,randomOne,resampleLocal};document.getElementById('publicQuotePrev')?.addEventListener('click',()=>{next(-1);start()});document.getElementById('publicQuoteNext')?.addEventListener('click',()=>{next(1);start()});document.getElementById('publicQuoteRandom')?.addEventListener('click',()=>{randomOne();start()});document.getElementById('publicQuoteResample')?.addEventListener('click',resampleLocal);document.getElementById('publicQuoteSearchSymbol')?.addEventListener('click',()=>window.WeReadHiddenEvidenceSearch?.open?.());toggle?.addEventListener('click',()=>{playing=!playing;toggle.textContent=playing?'暂停':'播放';toggle.setAttribute('aria-pressed',String(!playing));playing?start():stop()});paint();start();})();
 '''
 
 
@@ -188,9 +180,9 @@ def render_section(payload: dict) -> str:
         '<article class="card wide" id="public-quotes">'
         '<div class="title"><div><div class="section-kicker">Rotating public excerpts</div><h2>我的划线 · 随机轮播</h2></div>'
         f'<small>{candidates:,} 条候选 → 本轮 {len(items)} 条</small></div>'
-        '<p class="public-quote-policy">所有非空 mark 都进入构建时候选池，但公开 artifact 只包含本轮抽中的短摘录；不会把完整划线库发送到浏览器。页面内每 7 秒轮播，也可手动随机。review 仍不公开。</p>'
+        '<p class="public-quote-policy">全部非空划线都进入候选池；公开页面每轮只带 48 条短摘录。若已在本浏览器导入全量索引，“重新抽样”会直接从本地全量划线重新抽 48 条，不上传数据。</p>'
         f'<div class="public-quote-stage" id="publicQuotePlayer" data-quotes="{encoded}"><div class="public-quote-slide" id="publicQuoteSlide"></div></div>'
-        '<div class="public-quote-controls"><button type="button" id="publicQuotePrev">上一条</button><button type="button" id="publicQuoteRandom">🎲 随机一条</button><button type="button" id="publicQuoteToggle" aria-pressed="false">暂停</button><span class="public-quote-counter" id="publicQuoteCounter"></span><button type="button" id="publicQuoteNext">下一条</button></div>'
+        '<div class="public-quote-controls"><button type="button" id="publicQuotePrev">上一条</button><button type="button" id="publicQuoteRandom">🎲 随机一条</button><button type="button" id="publicQuoteResample">重新抽样</button><button type="button" id="publicQuoteToggle" aria-pressed="false">暂停</button><span class="public-quote-counter" id="publicQuoteCounter"></span><button type="button" id="publicQuoteNext">下一条</button><button type="button" class="symbol-btn" id="publicQuoteSearchSymbol" aria-label="全量搜索" title="全量搜索">🔎</button></div>'
         '</article>'
     )
 
