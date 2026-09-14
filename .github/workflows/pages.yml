@@ -10,6 +10,11 @@ on:
       - 'scripts/pages_runtime.py'
       - 'scripts/pages_insights.py'
       - 'scripts/pages_insights_full.py'
+      - 'scripts/pages_enrichment.py'
+      - 'scripts/pages_enrich_site.py'
+      - 'scripts/pages_story_ui.py'
+      - 'scripts/pages_year_lens_ui.py'
+      - 'scripts/pages_experience_ui.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
