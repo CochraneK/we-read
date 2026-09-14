@@ -8,6 +8,7 @@ on:
       - 'data/**'
       - 'scripts/build_pages_report.py'
       - 'scripts/pages_runtime.py'
+      - 'scripts/pages_ontology_claims.py'
       - 'scripts/pages_public_quotes.py'
       - 'scripts/pages_hidden_search_ui.py'
       - 'scripts/pages_polish_site.py'
@@ -22,6 +23,7 @@ on:
       - 'scripts/pages_queue_io_ui.py'
       - 'scripts/pages_theme_ui.py'
       - 'scripts/validate_pages_output.py'
+      - 'scripts/validate_ontology_claims.py'
       - 'scripts/metrics.py'
       - '.github/workflows/pages.yml'
   schedule:
@@ -56,11 +58,13 @@ jobs:
       - name: Build full real-data report
         run: |
           python scripts/pages_runtime.py
+          python scripts/pages_ontology_claims.py
           python scripts/pages_public_quotes.py
           python scripts/pages_polish_site.py
       - name: Validate final Page contract and JS
         run: |
           python scripts/validate_pages_output.py --js-out /tmp/we-read-pages-inline.js
+          python scripts/validate_ontology_claims.py
           node --check /tmp/we-read-pages-inline.js
       - name: Configure Pages
         uses: actions/configure-pages@v6
