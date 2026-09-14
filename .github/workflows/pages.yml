@@ -9,6 +9,7 @@ on:
       - 'scripts/build_pages_report.py'
       - 'scripts/pages_runtime.py'
       - 'scripts/pages_public_quotes.py'
+      - 'scripts/pages_hidden_search_ui.py'
       - 'scripts/pages_insights.py'
       - 'scripts/pages_insights_full.py'
       - 'scripts/pages_enrichment.py'
