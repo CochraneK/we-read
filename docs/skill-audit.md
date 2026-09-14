@@ -1,49 +1,47 @@
 # WeRead Skill 审计
 
-> 审计日期：2026-09-14。目标不是统计“有多少 Skill”，而是区分：**规范是否读过、能力是否实现、是否已经产品化、是否应该进入公开 Page**。
+> 审计日期：2026-09-14。目标不是统计“有多少 Skill”，而是区分：**规范是否读过、能力是否实现、是否已形成运行闭环、是否应该进入公开 Page**。
 
-## 结论
+## 总结
 
-仓库当前有 **10 个本地 Skill**。GitHub Pages 运行时不会动态执行这些 `SKILL.md`；Page 真正执行的是确定性 Python 模块。Skill 是工作流规范、数据语义、安全边界和输出契约的来源，脚本/renderer 再把能力落地。
+仓库当前有 **10 个本地 WeRead Skill**。`SKILL.md` 是工作流规范、字段语义、隐私边界和输出契约；真正执行的是 Python builder / verifier / renderer。外部实时数据来自腾讯官方 WeChatReading Agent Gateway，当前脚本基线为 `skill_version=1.0.4`。
 
-这次新增：
-
-- `weread-private-lab`：统一编排最初的划线卡片/深分析与后来 Search / Recall / Blindspot / Advisor / Alchemy / Review。
-
-因此以后必须区分：
+当前系统已经从“零散 Skill + Dashboard”收束为两类成品：
 
 ```text
-spec audited
-capability implemented
-runtime executed
-public surfaced
-private surfaced
+WeRead Intelligence
+├─ Public Reading Archive
+│  └─ 聚合事实、阅读版图、长期轨迹、书架探索
+└─ Private Reading Lab
+   └─ 原始证据、Search、Recall、Deep Notes、Cards、Alchemy、Advisor、Path、Review
 ```
-
-“仓库里有 Skill”不等于“Page 在调用 Skill”；“没有进公开 Page”也不等于没做，全文证据、Alchemy、Search、卡片等能力本来就应保持私有。
 
 ## 当前 10 个本地 Skill
 
-| Skill | 实现度 | 主要角色 | 公开 Page | 主要剩余缺口 |
+| Skill | 当前实现度 | 主要角色 | 公开 Page | 仍值得做 |
 |---|---:|---|---|---|
-| `weread-private-lab` | 中高 | **总编排 / 私有工作台** | 否 | 继续把更多私有 renderer 接入统一首页 |
-| `weread-visualization` | 高 | Heatmap / Map / Shift / Graph / Profile / Report | 是 | 继续统一 schema / renderer |
-| `weread-search` | 高（核心） | 本地全文检索 / evidence recall | 否 | Search → Recall / Alchemy / Map 统一 handoff |
-| `weread-recall` | 中高 | Feynman / 主动回忆 | 仅元数据 | 答题历史、间隔复习、答后差异 |
-| `weread-blindspot` | 中高 | 集中度 / 盲点 / Counter Reading | 是 | 学派 / stakeholder / 反向因果 / 新旧证据 |
-| `weread-obsidian` | 高 | 私有知识库安全增量同步 | 否 | 核心安全边界已完成 |
-| `weread-book-to-skill` | 中高 | 单书证据 → Skill | 否 | 第二阶段 3–7 步方法 refinement |
-| `weread-organizer` | 中高（安全模式） | 书架整理 / Booklist plan | 部分（Pin） | 官方写接口确认后再做远端 mutation |
-| `yao-weread-skill` | 中高 | 底层数据 / 报告 / 图表设计参考 | 大量吸收 | 不追求 27/27，文本模块保持私有 |
-| `huashu-weread` | 中高 | Advisor / Path / Alchemy / Review | 少量非敏感事实 | 推荐/选书/语义聚类/最终写作执行层 |
+| `weread-private-lab` | **高** | 私有总编排 / Action Hub / 隐私路由 | 否 | 真实私有数据最终验收 |
+| `weread-visualization` | **高** | Heatmap / Map / Shift / Graph / Profile / Report | 是 | 维护 schema / renderer |
+| `weread-search` | **高** | 本地全文检索 / evidence recall | 否 | 更统一的跨模块 handoff UX |
+| `weread-recall` | **高** | Feynman / 主动回忆 / spaced review | 公开仅元数据 | 可选语义级回答差异分析 |
+| `weread-blindspot` | 中高 | 集中度 / 投入落差 / Counter Reading | 是 | 更丰富的反证维度 |
+| `weread-obsidian` | **高** | 私有知识库安全增量同步 | 否 | 核心安全边界已完成 |
+| `weread-book-to-skill` | 中高 | 单书证据 → 可复用 Skill | 否 | 第二阶段 3–7 步方法 refinement |
+| `weread-organizer` | 中高（安全模式） | 书架整理 / Booklist plan | 部分（Pin） | 仅在官方写接口明确后考虑远端 mutation |
+| `yao-weread-skill` | 中高 | 官方数据/报告/图表设计参考 | 大量吸收 | 不追求机械 27/27 |
+| `huashu-weread` | **高（核心闭环）** | Advisor / Path / Alchemy / Review | 少量非敏感事实 | 主要剩真实语义审核与实际使用 |
 
-## 最初工作有没有丢
+“高”不代表所有可能功能都实现，而是：主 contract、workflow、实现映射、测试与隐私边界已经闭环。
 
-没有。最初工作主要有两条：
+---
+
+## 最初工作有没有被合并
+
+**已经合并。**
 
 ### 1. 划线 → 金句 → 卡片
 
-历史产物仍在：
+历史成品仍保留：
 
 ```text
 quote_lib/cards.html
@@ -53,18 +51,9 @@ quote_lib/金句库.json
 quote_lib/金句库_top60.md
 ```
 
-早期成品包含：
+历史版本约 351 张卡片，包含 A/B/C 三主题、翻转、键盘和 PDF 打印。
 
-- 351 张划线卡片；
-- A / B / C 三套风格；
-- 点击/键盘翻转；
-- 打印/PDF；
-- 作者、书名强调；
-- 历史版本背面在线加载书封。
-
-过去的问题是：`cards.html` 更像“已经生成的一次性成品”，没有完整进入后来统一 Context 流水线。
-
-现在已现代化成可重建链：
+现在已经变成可重建正式流水线：
 
 ```text
 weread_notes_export.json
@@ -80,235 +69,239 @@ quotes/金句库.json
 renderers/quote_cards.py
         ↓
 private_lab/quote_cards.html
+        ↓
+Book Workbench / Search / Recall / Alchemy
 ```
 
-新的卡片 renderer 保留：
+新版卡片不依赖在线封面，减少外部请求；原始划线明确属于私有证据。
 
-- 三主题；
-- 搜索；
-- 翻转；
-- 键盘可访问；
-- 打印/PDF；
-- 书名/作者/章节/主题/评分；
-- `weread://reading` 深链。
+### 2. 旧 A–E 16 项深分析
 
-同时去掉“必须在线拉封面”的依赖，减少外部请求。它明确是私人原文证据，不进入公开 Pages。
+`scripts/analysis.py` 仍保留作历史参考，但不再作为数据真相层。它曾包含：类别参与、作者集中、日/月节律、词云、想法词频/启发式情感、重复划线、章节位置、划线↔想法错位、进度×笔记和长期增长等。
 
-### 2. 深入分析 A–E 16 项
+有价值能力已经迁移：
 
-旧 `scripts/analysis.py` 是一套 16 项 Plotly Dashboard，里面确实有很多后来非常有价值的分析：
+| 旧能力 | 新主干 |
+|---|---|
+| A1 / E14 类别参与 | `metrics.py` / Advisor / Blindspot |
+| A2 作者集中 | Page 作者偏好 / Knowledge Graph |
+| B5 月度时间线 | Page rhythm / career |
+| B6 日内时段 | 24h 阅读时钟 |
+| B7 年月 / 星期 | Heatmap / weekday / seasonality |
+| C10 重复划线 | Deep Notes |
+| D12 章节位置 | Deep Notes（明确为近似口径） |
+| D13 划线↔想法关系 | Deep Notes |
+| E15 进度×笔记 | Page depth scatter |
+| E16 累计增长 | Page career / note evolution |
+| 原始划线卡片 | Private Quote Cards |
 
-- A1 类别参与度：藏书 vs 笔记、囤书 vs 真读；
-- A2 作者集中度；
-- A3 划线/想法参与模式；
-- A4 私密 vs 公开；
-- B5 月度阅读时长 + 笔记；
-- B6 日内时段；
-- B7 年×月热力与星期分布；
-- C8 划线关键词/词云；
-- C9 本人想法词频/启发式情感；
-- C10 重复划线原文；
-- D12 划线章节相对位置；
-- D13 划线 ↔ 想法章节错位；
-- E14 类别 × 划线/想法参与度；
-- E15 进度 × 笔记密度；
-- E16 累计有笔记书 × 累计笔记增长。
+不再把 C8 词云当“认知主题证明”，也不把 C9 词典情感升级成心理结论。
 
-旧脚本仍保留，但不再作为新系统的数据真相层，因为已知存在：
+---
 
-- A1 重复计数问题；
-- 私密书标题直接展示；
-- `C:/Windows/Fonts/msyh.ttc` 非跨平台；
-- “人格分型”命名过度；
-- 情感词典只能算启发式；
-- 年份/日期硬编码等维护问题。
+## Private Reading Lab 当前闭环
 
-## 深分析现在迁移到哪里
-
-### 已进入公开档案/统一事实层
-
-- A1 / E14 类别参与 → metrics / Advisor / Blindspot；
-- A2 作者集中 → Page 作者偏好 / Knowledge Graph；
-- B5 月度时间线 → Page 节律；
-- B6 日内时段 → 24h 阅读时钟；
-- B7 年×月 / 星期 → Heatmap / 星期节律 / seasonality；
-- E15 进度 × 笔记 → Page 深度散点；
-- E16 累积增长 → career / note evolution；
-- marks/reviews 年度结构 → Reading Profile / Page note evolution。
-
-### 新迁移到 Private Deep Notes Context
-
-新实现：
-
-```text
-scripts/build_deep_notes_context.py
-```
-
-重新实现并明确口径：
-
-- C10 重复划线；
-- 划线长度分布；
-- D12 划线章节位置（明确只是基于首次出现顺序的近似）；
-- D13 划线 ↔ 想法章节错位；
-- 想法密度高的书；
-- 划线密集但本人想法少的书。
-
-这里允许保留少量原始重复划线证据，因此默认：
-
-```json
-"publicPageSafe": false
-```
-
-### 不应该被“强整合”为结论的旧能力
-
-- C8 词云：可保留为探索视图，但不能证明“认知主题”；
-- C9 情感：词典法只能当启发式，不能推成心理状态；
-- A3 原“人格分型”：应改称阅读记录/参与模式，不做人格诊断；
-- A4 私密/公开：可做本地 coverage，不应把私密书样本公开。
-
-## 新的统一入口
-
-现在所有私人能力统一由：
+统一入口：
 
 ```bash
 python scripts/build_private_reading_lab.py
 ```
 
-默认构建：
-
-```text
-visualization_context
-advisor_context
-blindspot_context
-recall_queue
-search.sqlite
-deep_notes_context
-narrative_review_context
-private_lab/index.html
-```
-
-需要最初的划线卡片/全文证据：
-
-```bash
-python scripts/build_private_reading_lab.py --with-text
-```
-
-会追加：
-
-```text
-filtered_notes_private.json
-quotes/金句库.json
-quotes/金句库_top60.md
-quote_cards.html
-```
-
-主题 Alchemy：
-
-```bash
-python scripts/build_private_reading_lab.py --with-text --topic "认知科学"
-```
-
-单书 Alchemy：
-
-```bash
-python scripts/build_private_reading_lab.py --with-text --book-id "BOOK_ID"
-```
-
-默认仍排除 `secret=1`；要做完整本地个人档案必须显式：
+完整私有档案：
 
 ```bash
 python scripts/build_private_reading_lab.py --include-private --with-text
 ```
 
-## `huashu-weread` 四条主线状态
+入口：
 
-### Advisor
+```text
+data/analysis/private_lab/index.html
+```
 
-事实层已实现：深读/中读/轻读/浅尝/隐藏深读/收藏未投入/最近活动/类别投入率。
+核心 Lab 即使不加 `--with-text` 也包含 Search / Recall 所需的原始 evidence；`--with-text` 只是额外生成 Quote Cards / Alchemy 成品。
 
-仍缺最终执行：知识缺口 enrichment、候选书发现、当前上架验证、最终推荐排序。
+### Search
 
-### Path
+- SQLite 本地全文索引；
+- title / author / category / chapter / mark / review；
+- 中文 substring fallback；
+- 不进入公开 Page。
 
-已实现：zero / beginner / intermediate 建议、用户确认 gate、intro → framework → frontier、Feynman checkpoints、6–8 本契约、最小路径规则。
+### Deep Notes
 
-不会仅靠笔记数量自动判断 advanced。
+`scripts/build_deep_notes_context.py`：
 
-仍缺最终候选书 selection、`/store/search` 与 word-count enrichment。
+- 重复划线；
+- 划线长度；
+- 章节位置；
+- mark/review 章节关系；
+- thought-rich books；
+- highlight-heavy books。
+
+### Recall
+
+已经完成：
+
+- stable `evidenceId`；
+- 先写“我现在怎么理解”，再展开旧证据；
+- again / hard / good / easy；
+- browser-local `nextReviewAt`；
+- `answerHistory`；
+- JSON 导入导出；
+- 当前回答 vs 当时证据的**表面文字重合百分比**。
+
+最后一项不是语义正确率，只是弱提示。
 
 ### Alchemy
 
-已进入 Private Reading Lab。已实现：
+已完成：
 
-- 单书 / 跨主题；
-- marks=`source_text`；
-- reviews=`user_thought`；
-- 章节归位；
-- evidence landscape；
-- 大体量 scope gate；
-- 明确不公开 raw evidence。
+```text
+Context
+→ source_text / user_thought 分离
+→ heuristic issue clusters
+→ evidence-backed synthesis
+→ unresolved questions
+→ private HTML
+```
 
-仍缺最终语义聚类与私有长文 synthesis renderer。
+大证据量先触发 scope gate。heuristic cluster 不宣称等于完整语义理解。
 
-### Review
+### Narrative Review
 
-周期事实 Context 已实现：完成/在读/浅尝/重读/未知进度、日级时长、stalled books、类别迁移候选与平台 gate。
+已从 Context 升级为可用成品：
 
-仍缺最终多平台 narrative writer/renderer。
+```text
+period facts
+→ platform gate
+→ deterministic draft JSON
+→ Markdown
+→ private HTML
+```
 
-## Privacy routing
+支持朋友圈 / 公众号 / 小红书 / 视频脚本 / 个人日记。
 
-当前统一分三层：
+成稿器自动使用可验证数字、书目、峰值月份、卡住的书和主题变化候选；不会编造：
+
+- 为什么兴趣改变；
+- 为什么弃读；
+- “这本书改变了我”。
+
+这些意义缺失时会留下明确编辑提示。
+
+### Advisor
+
+当前链路：
+
+```text
+Advisor Context
+→ /store/search scope=10
+→ live catalog verification
+→ already-read exclusion
+→ shortlist
+→ semantic brief
+→ offline semantic editor
+→ strict semantic validator
+→ final semantic result
+```
+
+语义 gate 要求每本书显式填写并给证据：
+
+- `school_or_viewpoint`；
+- `era_or_paradigm`；
+- `abstraction_level`；
+- `adjacent_discipline`；
+- `conceptualFit`；
+- 每项 `evidence + confidence`。
+
+目录可用、评分高、标题相似都不能替代概念适配证据。
+
+### Reading Path
+
+当前链路：
+
+```text
+Path Context
+→ live discovery
+→ semantic brief/editor
+→ stage + stageEvidence
+→ semantic gate
+→ live re-verification
+→ /book/info enrichment
+→ 2 × intro + 2 × framework + 2 × frontier
+→ time estimate / minimum version / Feynman checkpoints
+→ final private HTML
+```
+
+不会仅凭笔记数自动判断 advanced；最终 level 仍要求显式确认。
+
+---
+
+## `huashu-weread` 四条主线现在的真实状态
+
+### Advisor — 核心闭环完成
+
+已实现事实层、实时目录核验、已读排除、shortlist、语义编辑器、strict gate 和最终语义结果。
+
+**刻意保留的人工/语义 gate**：真正判断一本书属于什么学派/范式、为什么补缺，需要 evidence；代码不硬猜。
+
+### Path — 核心闭环完成
+
+已实现起点建议、level 确认、live discovery、语义阶段审阅、目录重验、book info、6 本路径、最小版本、时间估算和 Feynman checkpoint。
+
+### Alchemy — 私有闭环完成
+
+已实现单书/跨主题 Context、证据分型、scope gate、heuristic synthesis 和私人 HTML。
+
+### Review — 成稿闭环完成
+
+已实现周期事实、platform gate、事实约束草稿、Markdown 与私人 HTML。
+
+---
+
+## 隐私路由
 
 ```text
 公开 Page
-  聚合事实 + 非敏感交互 + 书目元数据
+  聚合事实 + 非敏感书目元数据 + 结构化洞察
 
 Private Reading Lab
-  全文 Search + 划线卡片 + Deep Notes + Alchemy + Recall + 本人想法
+  原始 marks/reviews + Search + Cards + Deep Notes + Recall
+  Alchemy + Review + Advisor + Reading Path + Semantic Review
 
-需要明确确认后执行
-  Advisor 推荐 + Path 最终书单 + 对外 Review + 远端写操作
+需要显式人工确认
+  因果意义 / 概念适配 / Path 阶段角色 / 对外发布 / 远端写操作
 ```
 
-这是现在所有 WeRead Skill 的总架构。
+Private Lab 最终 artifact 还会运行 `validate_private_lab_output.py`：
+
+- 必须 `noindex,nofollow,noarchive`；
+- 必须有 Private / Raw Evidence 标记；
+- 必须有 Search / Recall / Actions；
+- 浏览器端禁止 `fetch()` / XHR / WebSocket；
+- 内联 JS 必须通过 `node --check`。
+
+---
+
+## 目前真正还没完成的是什么
+
+不再是“缺很多功能”，而是以下收尾：
+
+1. **真实私有数据端到端运行**：公开 CI 故意不上传 raw marks/reviews 和 API key，因此最终 Private Lab 应在用户自己的环境跑一次完整验收。
+2. **Book→Skill 第二阶段 refinement**：从证据进一步提炼 3–7 步可执行方法。
+3. **Blindspot 更强反证**：学派、stakeholder、反向因果等。
+4. **可选的语义回答差异**：Recall 当前只有安全、可解释的 lexical-overlap 弱信号；以后可加本地/私有语义模型，但不能伪装成“理解程度分数”。
+5. **Legacy 清理**：`analysis.py` 继续保留历史可复现性，但不应再扩展。
+6. **Git 历史隐私清理**：属于破坏性操作，只有用户明确授权才做。
 
 ## “充分分析”的标准
 
 一个 Skill 只有以下四项都明确后才算规范级审计完成：
 
 1. **Contract**：数据源、字段语义、fallback、隐私边界；
-2. **Workflow**：真实步骤、分叉、用户确认点；
+2. **Workflow**：真实步骤、分叉、确认点；
 3. **Implementation mapping**：仓库哪段代码实现了什么；
-4. **Gap decision**：缺失能力是继续做、暂缓，还是刻意不公开。
+4. **Gap decision**：缺失是继续做、暂缓，还是刻意不自动化。
 
-目前 10 个本地 Skill 都已经完成规范级 mapping；实现深度不同。
-
-## 下一步优先级
-
-### P0
-
-1. Advisor gap enrichment + candidate verifier；
-2. Path candidate selection + availability / word-count verifier；
-3. Alchemy semantic cluster + private synthesis renderer；
-4. Narrative Review multi-platform writer/renderer。
-
-### P1
-
-1. Recall history + spaced review；
-2. Search → Recall / Alchemy / Map evidence handoff；
-3. Book→Skill 第二阶段方法 refinement；
-4. Blindspot 反证维度。
-
-### P2
-
-选择性迁移旧/社区图表，不追求为了数量堆图。词云、原始划线时间线、高价值原文清单等默认留在 Private Reading Lab。
-
-目标已经从“有很多零散微信读书能力”转成：
-
-```text
-一套统一事实层
-+ 一个公开个人阅读档案
-+ 一个私有深度阅读实验室
-+ 一组可组合的 WeRead Skills
-```
+当前 10 个本地 Skill 都完成了规范级 mapping；核心 WeRead 私人工作流已经由“分析阶段”进入“使用/维护阶段”。
