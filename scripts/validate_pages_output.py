@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Validate the fully assembled GitHub Pages artifact before deployment.
-
-Checks the HTML/report contract, required UX markers, bookshelf count consistency,
-and source mark/review bodies to catch accidental raw-text leaks. Short highlight
-excerpts may be public only through the explicit ``publicQuotes`` contract.
-It also writes concatenated inline JavaScript so CI can run ``node --check`` on
-exactly the script that will be deployed.
-"""
+"""Validate the fully assembled GitHub Pages artifact before deployment."""
 from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
@@ -30,8 +24,10 @@ REQUIRED_HTML_MARKERS = (
     "themeToggle",
     "wereadArchiveThemeV1",
     "publicQuoteRandom",
+    "publicQuoteResample",
     "hiddenEvidenceSearch",
-    "wereadPrivateEvidenceV1",
+    "wereadPublicMarksV2",
+    "public-marks-index.js",
 )
 RAW_KEYS = {"text", "content", "markText", "reviewText"}
 HARD_PUBLIC_QUOTE_MAX_CHARS = 120
@@ -99,8 +95,6 @@ def validate_public_quotes(report: dict, html: str) -> tuple[set[str], int]:
         raise ValueError("publicQuotes source must be marks_only")
     if policy.get("reviewsPublished") is not False:
         raise ValueError("publicQuotes must never publish reviews")
-    if policy.get("fullRawPublished") is not False:
-        raise ValueError("publicQuotes must never publish full long raw bodies")
     if policy.get("allNonEmptyMarksMayBeSampled") is not True:
         raise ValueError("publicQuotes must sample from the full non-empty mark pool")
     if int(policy.get("candidateCount") or 0) < int(payload.get("count") or 0):
@@ -153,6 +147,44 @@ def validate_public_quotes(report: dict, html: str) -> tuple[set[str], int]:
     return allowed_exact_bodies, len(items)
 
 
+def validate_public_mark_index(site: Path, report: dict, html: str) -> int:
+    contract = report.get("publicMarkIndex") or {}
+    if not contract:
+        return 0
+    if contract.get("enabled") is not True or contract.get("userAuthorized") is not True:
+        raise ValueError("publicMarkIndex must be explicitly enabled and authorized")
+    if contract.get("source") != "marks_only" or contract.get("reviewsPublished") is not False:
+        raise ValueError("publicMarkIndex must contain marks only and exclude reviews")
+    if contract.get("fullMarksPublished") is not True:
+        raise ValueError("publicMarkIndex must explicitly declare fullMarksPublished=true")
+    asset_name = str(contract.get("asset") or "")
+    if not asset_name or asset_name not in html:
+        raise ValueError("publicMarkIndex asset is not referenced by the Page")
+    asset = site / asset_name
+    if not asset.exists():
+        raise ValueError(f"missing public mark index asset: {asset}")
+    text = asset.read_text(encoding="utf-8")
+    prefix = "window.__WEREAD_BUILTIN_MARKS__="
+    pos = text.find(prefix)
+    if pos < 0:
+        raise ValueError("public mark index asset missing expected global assignment")
+    raw = text[pos + len(prefix):].strip()
+    if raw.endswith(";"):
+        raw = raw[:-1]
+    items = json.loads(raw)
+    expected = int(contract.get("count") or 0)
+    if not isinstance(items, list) or len(items) != expected:
+        raise ValueError(f"public mark index count mismatch: contract={expected} asset={len(items) if isinstance(items,list) else 'invalid'}")
+    for row in items:
+        if not isinstance(row, dict):
+            raise ValueError("public mark index row must be an object")
+        if "content" in row or "reviewText" in row or "reviews" in row or "review" in row:
+            raise ValueError("review data leaked into public marks index")
+        if not str(row.get("text") or "").strip():
+            raise ValueError("public marks index contains empty text")
+    return len(items)
+
+
 def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> dict:
     index_path = site / "index.html"
     report_path = site / "report-data.json"
@@ -191,7 +223,10 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
             raise ValueError(f"forbidden raw-text field in enrichment: {forbidden_key}")
 
     allowed_public_bodies, public_quote_count = validate_public_quotes(report, html)
+    public_mark_index_count = validate_public_mark_index(site, report, html)
 
+    # HTML/report-data still must not contain arbitrary raw bodies. Full authorized
+    # marks live only in the separately contracted public-marks-index.js asset.
     notes = load_json(data / "weread_notes_export.json", [])
     checked = 0
     for body in iter_raw_bodies(notes):
@@ -202,7 +237,7 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
                 if checked >= sample_limit:
                     break
                 continue
-            raise ValueError("raw mark/review body leaked into Pages output outside publicQuotes policy")
+            raise ValueError("raw mark/review body leaked into Page HTML/report-data outside explicit contracts")
         checked += 1
         if checked >= sample_limit:
             break
@@ -223,6 +258,7 @@ def validate(site: Path, data: Path, js_out: Path, sample_limit: int = 240) -> d
         "rawBodiesChecked": checked,
         "publicQuotes": public_quote_count,
         "publicQuoteCandidates": int(((report.get("publicQuotes") or {}).get("policy") or {}).get("candidateCount") or 0),
+        "publicMarkIndex": public_mark_index_count,
         "privateIncluded": int(summary.get("privateIncluded") or 0),
     }
 
