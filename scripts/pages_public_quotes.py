@@ -33,6 +33,8 @@ import os
 import random
 import re
 
+import pages_hidden_search_ui
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 SITE = ROOT / "site"
@@ -173,7 +175,7 @@ CSS = r'''
 '''
 
 JS = r'''
-(()=>{const root=document.getElementById('publicQuotePlayer');if(!root)return;let rows=[];try{rows=JSON.parse(root.dataset.quotes||'[]')}catch(_){rows=[]}if(!rows.length)return;for(let i=rows.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rows[i],rows[j]]=[rows[j],rows[i]]}const slide=document.getElementById('publicQuoteSlide'),counter=document.getElementById('publicQuoteCounter'),toggle=document.getElementById('publicQuoteToggle');let index=0,timer=null,playing=true;const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function paint(){const q=rows[index];slide.classList.add('is-changing');setTimeout(()=>{const meta=[q.title?`<b>《${esc(q.title)}》</b>`:'',esc(q.author||''),esc(q.chapter||'')].filter(Boolean).join(' · ');slide.innerHTML=`<blockquote>“${esc(q.excerpt||'')}”</blockquote><div class="q-meta">${meta}${q.deepLink?`<br><a href="${esc(q.deepLink)}">在微信读书打开 ↗</a>`:''}</div>`;counter.textContent=`${index+1} / ${rows.length}`;slide.classList.remove('is-changing')},120)}function next(step=1){index=(index+step+rows.length)%rows.length;paint()}function stop(){if(timer)clearInterval(timer);timer=null}function start(){stop();if(playing)timer=setInterval(()=>next(1),7000)}document.getElementById('publicQuotePrev')?.addEventListener('click',()=>{next(-1);start()});document.getElementById('publicQuoteNext')?.addEventListener('click',()=>{next(1);start()});toggle?.addEventListener('click',()=>{playing=!playing;toggle.textContent=playing?'暂停':'播放';toggle.setAttribute('aria-pressed',String(!playing));playing?start():stop()});paint();start();})();
+(()=>{const root=document.getElementById('publicQuotePlayer');if(!root)return;let rows=[];try{rows=JSON.parse(root.dataset.quotes||'[]')}catch(_){rows=[]}if(!rows.length)return;for(let i=rows.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rows[i],rows[j]]=[rows[j],rows[i]]}const slide=document.getElementById('publicQuoteSlide'),counter=document.getElementById('publicQuoteCounter'),toggle=document.getElementById('publicQuoteToggle');let index=0,timer=null,playing=true;const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function paint(){const q=rows[index];slide.classList.add('is-changing');setTimeout(()=>{const meta=[q.title?`<b>《${esc(q.title)}》</b>`:'',esc(q.author||''),esc(q.chapter||'')].filter(Boolean).join(' · ');slide.innerHTML=`<blockquote>“${esc(q.excerpt||'')}”</blockquote><div class="q-meta">${meta}${q.deepLink?`<br><a href="${esc(q.deepLink)}">在微信读书打开 ↗</a>`:''}</div>`;counter.textContent=`${index+1} / ${rows.length}`;slide.classList.remove('is-changing')},120)}function next(step=1){index=(index+step+rows.length)%rows.length;paint()}function randomOne(){if(rows.length<2){paint();return}let n=index;while(n===index)n=Math.floor(Math.random()*rows.length);index=n;paint()}function stop(){if(timer)clearInterval(timer);timer=null}function start(){stop();if(playing)timer=setInterval(()=>next(1),7000)}document.getElementById('publicQuotePrev')?.addEventListener('click',()=>{next(-1);start()});document.getElementById('publicQuoteNext')?.addEventListener('click',()=>{next(1);start()});document.getElementById('publicQuoteRandom')?.addEventListener('click',()=>{randomOne();start()});toggle?.addEventListener('click',()=>{playing=!playing;toggle.textContent=playing?'暂停':'播放';toggle.setAttribute('aria-pressed',String(!playing));playing?start():stop()});paint();start();})();
 '''
 
 
@@ -186,9 +188,9 @@ def render_section(payload: dict) -> str:
         '<article class="card wide" id="public-quotes">'
         '<div class="title"><div><div class="section-kicker">Rotating public excerpts</div><h2>我的划线 · 随机轮播</h2></div>'
         f'<small>{candidates:,} 条候选 → 本轮 {len(items)} 条</small></div>'
-        '<p class="public-quote-policy">所有非空 mark 都进入构建时候选池，但公开 artifact 只包含本轮抽中的短摘录；不会把完整划线库发送到浏览器。页面内每 7 秒随机轮播，可暂停或手动切换。review 仍不公开。</p>'
+        '<p class="public-quote-policy">所有非空 mark 都进入构建时候选池，但公开 artifact 只包含本轮抽中的短摘录；不会把完整划线库发送到浏览器。页面内每 7 秒轮播，也可手动随机。review 仍不公开。</p>'
         f'<div class="public-quote-stage" id="publicQuotePlayer" data-quotes="{encoded}"><div class="public-quote-slide" id="publicQuoteSlide"></div></div>'
-        '<div class="public-quote-controls"><button type="button" id="publicQuotePrev">上一条</button><button type="button" id="publicQuoteToggle" aria-pressed="false">暂停</button><span class="public-quote-counter" id="publicQuoteCounter"></span><button type="button" id="publicQuoteNext">下一条</button></div>'
+        '<div class="public-quote-controls"><button type="button" id="publicQuotePrev">上一条</button><button type="button" id="publicQuoteRandom">🎲 随机一条</button><button type="button" id="publicQuoteToggle" aria-pressed="false">暂停</button><span class="public-quote-counter" id="publicQuoteCounter"></span><button type="button" id="publicQuoteNext">下一条</button></div>'
         '</article>'
     )
 
@@ -214,7 +216,7 @@ def augment_site(site_dir: Path = SITE, data_dir: Path = DATA, *, enabled: bool 
 
     page = index_path.read_text(encoding="utf-8")
     if 'id="public-quotes"' not in page:
-        page = page.replace("</style>", CSS + "\n</style>", 1)
+        page = page.replace("</style>", CSS + "\n" + pages_hidden_search_ui.CSS + "\n</style>", 1)
         page = page.replace("</nav>", '<a href="#public-quotes">随机划线</a></nav>', 1)
         marker = '<article class="card wide privacy">'
         section = render_section(payload)
@@ -222,7 +224,8 @@ def augment_site(site_dir: Path = SITE, data_dir: Path = DATA, *, enabled: bool 
             page = page.replace(marker, section + "\n" + marker, 1)
         else:
             page = page.replace("</main>", section + "\n</main>", 1)
-        page = page.replace("</script>", JS + "\n</script>", 1)
+        page = page.replace("</body>", pages_hidden_search_ui.HTML + "\n</body>", 1)
+        page = page.replace("</script>", JS + "\n" + pages_hidden_search_ui.JS + "\n</script>", 1)
         index_path.write_text(page, encoding="utf-8")
     return {
         "enabled": True,
