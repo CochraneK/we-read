@@ -9,7 +9,6 @@ This layer changes presentation only:
 - clock Top 3 uses fixed rank / hour / duration columns and stays inside the card;
 - seasonality spans the full row so all 12 months stay on one line;
 - category migration sits directly below reading focus migration;
-- ontology scope copy distinguishes all evidence-backed book entities from shelf count;
 - empty official-preference placeholders and noisy title suffixes are cleaned;
 - quote action buttons keep identical backgrounds while only dice glyphs differ.
 """
@@ -72,10 +71,6 @@ JS = r'''
   const shift=document.getElementById('shift'),focus=document.getElementById('focus');
   if(shift&&focus&&shift.nextElementSibling!==focus)shift.insertAdjacentElement('afterend',focus);
 
-  // Ontology Book entities include current shelf plus historical books retained by notebook/note evidence.
-  const ontology=document.getElementById('ontology-lite'),ontologyScope=ontology?.querySelector('.title small');
-  if(ontologyScope)ontologyScope.textContent='书目实体覆盖当前书架 + 历史 Notebook/笔记证据；当前书架数量仍以书架模块为准';
-
   const peak=document.getElementById('clockPeak');
   if(peak){const cards=[...peak.querySelectorAll('.deep-card')];if(cards.length){peak.classList.add('clock-peak-list');cards.forEach((card,i)=>{const time=card.querySelector('b')?.textContent?.trim()||'—',hours=card.querySelector('p')?.textContent?.trim()||'';card.innerHTML=`<span class="clock-peak-rank">${i+1}</span><b>${time}</b><p>${hours}</p>`})}}
 
@@ -96,7 +91,7 @@ def polish(site_dir: Path = SITE) -> None:
         page = page.replace("</style>", CSS + "\n</style>", 1)
         page = page.replace("</script>", JS + "\n</script>", 1)
         path.write_text(page, encoding="utf-8")
-    print("Pages polish: compact clock face, aligned peak ranking, annual/rhythm/focus layout, ontology scope copy")
+    print("Pages polish: compact clock face, aligned peak ranking, annual/rhythm/focus layout")
 
 
 if __name__ == "__main__":
