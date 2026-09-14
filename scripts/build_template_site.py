@@ -3,15 +3,20 @@
 """Build a reproducible WeRead archive without touching the canonical Page.
 
 This entrypoint reuses the exact production Pages render chain, but makes the
-input data directory and output site directory explicit.  It deliberately
+input data directory and output site directory explicit. It deliberately
 refuses to write to ``site/`` so template experiments cannot overwrite the
 owner's deployed archive.
+
+A final template-only adaptation pass replaces owner-specific count copy that
+still exists in the production presentation layer (for example the current
+shelf/mark totals). The canonical Page never goes through this pass.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -67,6 +72,46 @@ def _restore_private_env(previous: str | None) -> None:
         os.environ["WEREAD_PAGES_INCLUDE_PRIVATE"] = previous
 
 
+def adapt_template_output(
+    output_dir: Path,
+    *,
+    shelf_count: int,
+    mark_count: int | None,
+) -> dict[str, int]:
+    """Replace owner-specific presentation counts in the isolated template only.
+
+    The production Page currently contains a few human-readable count strings
+    such as ``498-book explorer`` and the owner's public-mark total. Those are
+    presentation copy, not data contracts. Keeping this pass here means the
+    shared renderer can remain byte-for-byte untouched while a fork/demo shows
+    counts derived from its own dataset.
+    """
+    path = output_dir / "index.html"
+    html = path.read_text(encoding="utf-8")
+    counts: dict[str, int] = {}
+
+    shelf_patterns = (
+        ("shelfExplorer", r"\b\d{1,3}(?:,\d{3})*-book explorer\b", f"{shelf_count:,}-book explorer"),
+        ("heroShelf", r"\b\d{1,3}(?:,\d{3})* 本完整书架\b", f"{shelf_count:,} 本完整书架"),
+        ("chapterShelf", r"把 \d{1,3}(?:,\d{3})* 本书", f"把 {shelf_count:,} 本书"),
+        ("commandShelf", r"\b\d{1,3}(?:,\d{3})* 本书搜索", f"{shelf_count:,} 本书搜索"),
+    )
+    for key, pattern, replacement in shelf_patterns:
+        html, n = re.subn(pattern, replacement, html)
+        counts[key] = n
+
+    if mark_count is not None:
+        html, n = re.subn(
+            r"\b\d{1,3}(?:,\d{3})* 条授权公开划线",
+            f"{mark_count:,} 条授权公开划线",
+            html,
+        )
+        counts["publicMarks"] = n
+
+    path.write_text(html, encoding="utf-8")
+    return counts
+
+
 def build_template_site(
     data_dir: Path,
     output_dir: Path,
@@ -114,6 +159,14 @@ def build_template_site(
             enabled=publish_marks,
         )
         pages_polish_site.polish(output_dir)
+
+        summary = page_report.get("summary") or {}
+        mark_count = int(quote_result.get("markIndexCount") or 0) if publish_marks else None
+        adaptations = adapt_template_output(
+            output_dir,
+            shelf_count=int(summary.get("shelfBooks") or 0),
+            mark_count=mark_count,
+        )
         (output_dir / ".nojekyll").write_text("", encoding="utf-8")
 
         build_meta = {
@@ -122,12 +175,14 @@ def build_template_site(
                 "pages_runtime",
                 "pages_public_quotes" if publish_marks else "pages_public_quotes:disabled",
                 "pages_polish_site",
+                "template_count_adaptation",
             ],
             "includePrivate": bool(include_private),
             "publishMarks": bool(publish_marks),
             "output": str(output_dir),
-            "summary": page_report.get("summary") or {},
+            "summary": summary,
             "quotes": quote_result,
+            "adaptations": adaptations,
         }
         (output_dir / "template-build.json").write_text(
             json.dumps(build_meta, ensure_ascii=False, indent=2), encoding="utf-8"
