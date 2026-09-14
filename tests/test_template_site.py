@@ -50,13 +50,25 @@ class TemplateSiteTests(unittest.TestCase):
             self.assertEqual(result["shelfBooks"], 6)
             self.assertEqual(result["privateIncluded"], 1)
             self.assertGreater(result["publicQuotes"], 0)
-            self.assertGreater(result["publicMarkIndex"], 0)
+            self.assertEqual(result["publicMarkIndex"], 12)
 
             html = (site / "index.html").read_text(encoding="utf-8")
-            self.assertIn('id="chapter-life"', html)
+            # Chapter headings are created by the production JS at runtime, so
+            # the source contract is the marker rather than a static id node.
+            self.assertIn("chapter-life", html)
             self.assertIn('id="shelf-explorer"', html)
             self.assertIn('id="public-quotes"', html)
             self.assertIn("clock-peak-list", html)
+
+            # Owner-specific presentation totals must be rewritten from the
+            # synthetic dataset without changing the shared production modules.
+            self.assertIn("6-book explorer", html)
+            self.assertIn("6 本完整书架", html)
+            self.assertIn("12 条授权公开划线", html)
+            self.assertNotIn("498-book explorer", html)
+            self.assertNotIn("498 本完整书架", html)
+            self.assertNotIn("6,099 条授权公开划线", html)
+
             self.assertTrue((site / "public-marks-index.js").is_file())
             self.assertTrue((site / ".nojekyll").is_file())
 
@@ -64,6 +76,9 @@ class TemplateSiteTests(unittest.TestCase):
             self.assertEqual(meta["builder"], "weread-template")
             self.assertTrue(meta["includePrivate"])
             self.assertTrue(meta["publishMarks"])
+            self.assertIn("template_count_adaptation", meta["renderChain"])
+            self.assertGreater(meta["adaptations"].get("shelfExplorer", 0), 0)
+            self.assertGreater(meta["adaptations"].get("publicMarks", 0), 0)
 
         after = canonical.read_bytes() if canonical.exists() else None
         self.assertEqual(before, after, "template build must never mutate the canonical site/index.html")
