@@ -53,6 +53,7 @@ class PagesUiCompositionTests(unittest.TestCase):
             "chapter-boundary",
         ):
             self.assertIn(chapter, experience.JS)
+        self.assertIn("getElementById('rhythm')", experience.JS)
         self.assertIn("focus-mode", experience.CSS)
         self.assertIn("focusToggle", experience.JS)
         self.assertIn("shelfQuery", experience.JS)
@@ -60,11 +61,21 @@ class PagesUiCompositionTests(unittest.TestCase):
         self.assertIn("IntersectionObserver", experience.JS)
         self.assertIn("reading-progress", experience.CSS)
 
+    def test_local_pin_queue_does_not_require_remote_writes(self):
+        self.assertIn("wereadArchivePinsV1", experience.JS)
+        self.assertIn("value='pinned'", experience.JS)
+        self.assertIn("localStorage.setItem(pinKey", experience.JS)
+        self.assertIn("shelf-pin", experience.CSS)
+        self.assertIn("不修改微信读书", experience.JS)
+        self.assertNotIn("/shelf/", experience.JS)
+        self.assertNotIn("fetch(", experience.JS)
+
     def test_experience_enhancer_injects_css_and_js(self):
         base = "<html><head><style>BASE</style></head><body><script>BASEJS</script></body></html>"
         out = experience.enhance(base)
         self.assertIn("chapter-heading", out)
         self.assertIn("wereadArchiveFocus", out)
+        self.assertIn("wereadArchivePinsV1", out)
         self.assertLess(out.index("BASE"), out.index("chapter-heading"))
         self.assertLess(out.index("BASEJS"), out.index("wereadArchiveFocus"))
 
