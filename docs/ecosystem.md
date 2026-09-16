@@ -125,7 +125,7 @@ https://github.com/crazyJiaLin/we-read-tool
 - 不为了“AI 感”让模型重新计算原始统计值。
 - 不把微信读书 category 直接冒充为知识主题。
 - 不把书架收藏直接当成真实阅读投入。
-- 不把本地个人数据变成公开仓库 demo 数据。
+- 不把完整 raw 个人数据、用户 review、搜索索引或私有 evidence 直接变成公开内容；Public Archive 仅按 `docs/publication-policy.md` 发布获授权且经过 validator 的有限事实、元数据与 bounded excerpts。
 - 不把多个已有项目的前端功能机械复制进一个巨型应用。
 
 `we-read` 的差异化应保持在：**本地优先 + 证据可追溯 + AI 解释与确定性事实分层 + 可组合 Skill**。
