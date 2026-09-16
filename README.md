@@ -1,4 +1,19 @@
+<div align="center">
+
 # we-read · WeRead Intelligence
+
+**把“读过什么”升级为“我长期在关注什么，以及读过的知识现在能为我做什么”。**
+
+<p>
+  <img alt="Local first" src="https://img.shields.io/badge/design-local--first-6C63FF">
+  <img alt="Evidence" src="https://img.shields.io/badge/analysis-evidence--traceable-2F80ED">
+  <img alt="Public archive" src="https://img.shields.io/badge/product-Public%20Reading%20Archive-27AE60">
+  <img alt="Private lab" src="https://img.shields.io/badge/workspace-Private%20Reading%20Lab-F2994A">
+</p>
+
+[**公开阅读档案**](https://cochranek.github.io/we-read/)
+
+</div>
 
 > 把微信读书从「读过什么」，变成「我在关注什么、阅读如何迁移，以及读过的知识现在能为我做什么」。
 
