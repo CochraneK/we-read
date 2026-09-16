@@ -19,6 +19,8 @@
 
 **公开个人阅读档案：** https://cochranek.github.io/we-read/
 
+**复刻自己的版本：** [`CochraneK/we-read-template`](https://github.com/CochraneK/we-read-template) — 干净 starter、synthetic fixtures、`setup / doctor / sync`，不包含本仓个人阅读数据。
+
 `we-read` 是一套围绕腾讯微信读书 Agent Gateway 构建的**本地优先、证据可追溯**的阅读数据、分析、检索、回顾与知识复用系统。
 
 项目现在有两个明确成品：
