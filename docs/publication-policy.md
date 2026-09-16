@@ -1,6 +1,12 @@
 # WeRead Public Publication Policy
 
-> Updated 2026-09-14 after explicit user authorization to publish personal WeRead highlights.
+> Canonical publication policy. Updated 2026-09-16. This file is the source of truth for what may enter the public GitHub Pages artifact.
+
+## Policy authority
+
+`README.md`, `AGENTS.md`, `docs/pages.md`, workflow configuration and validators must stay consistent with this document. If older documentation conflicts with this file, this policy wins and the stale documentation should be updated.
+
+This policy governs **published Page artifacts**. It does not authorize destructive cleanup of repository history. Historical tracked personal exports are a separate maintenance concern tracked in Issue #2 and must not be rewritten or removed automatically.
 
 ## Current public scope
 
