@@ -1,64 +1,87 @@
-# GitHub Pages 一次性启用
+# GitHub Pages 发布
 
-公开 Page 源码已经位于：
-
-```text
-site/index.html
-```
-
-部署 workflow 已经位于：
-
-```text
-.github/workflows/pages.yml
-```
-
-它只会上传 `site/`，不会把 `data/`、个人划线、搜索索引或生成 Skill 放进公开站点。
-
-## 为什么第一次还需要一个仓库设置
-
-GitHub Pages 在第一次发布前要求仓库管理员先选择 publishing source。
-
-本仓库的 workflow 已尝试使用 `actions/configure-pages` 自动启用，但 GitHub 返回：
-
-```text
-Create Pages site failed: Resource not accessible by integration
-```
-
-这表示 workflow 的 `GITHUB_TOKEN` 有部署 Pages 的权限，但当前 GitHub App / workflow token 没有替仓库执行“首次创建 Pages site”的管理权限。
-
-## 只需做一次
-
-打开：
-
-```text
-CochraneK/we-read → Settings → Pages
-```
-
-在 **Build and deployment → Source** 选择：
-
-```text
-GitHub Actions
-```
-
-不需要创建新 workflow；仓库里已经有 `.github/workflows/pages.yml`。
-
-启用后，重新运行 `pages` workflow（或对 `site/` / `pages.yml` 做一次提交）即可部署。
-
-目标地址：
+公开站点：
 
 ```text
 https://cochranek.github.io/we-read/
 ```
 
-## 当前 Page 内容
+部署 workflow：
 
-- WeRead Intelligence 产品介绍
-- Collect → Normalize → Analyze → Interpret → Reuse 架构
-- 合成 Reading Heatmap Demo
-- 合成 Reading Map Demo
-- Cognitive Shift 时间轴 Demo
-- Visualize / Search / Recall / Blindspot / Obsidian / Book→Skill 功能卡
-- 快速开始命令
-- 本地优先与隐私边界
+```text
+.github/workflows/pages.yml
+```
 
-所有演示数据均为合成数据，不读取仓库中历史遗留的真实阅读数据。
+公开范围的唯一规范见：
+
+```text
+docs/publication-policy.md
+```
+
+如果本文、README 或其他旧文档与 publication policy 冲突，以 publication policy 为准。
+
+## 当前发布流程
+
+当前 Page 已不是早期的纯合成 Demo，而是 **Public Reading Archive**。
+
+workflow 会：
+
+```text
+checkout
+→ build real-data public report
+→ add explicitly authorized bounded public quotes
+→ polish site
+→ validate final public artifact
+→ node --check inline JS
+→ upload site/
+→ deploy GitHub Pages
+```
+
+当前 workflow 显式设置：
+
+```text
+WEREAD_PAGES_INCLUDE_PRIVATE=1
+WEREAD_PAGES_INCLUDE_PUBLIC_QUOTES=1
+```
+
+这意味着公开 Page 可以包含 publication policy 已授权的真实阅读事实、书目元数据和受限划线摘录。
+
+## 不会随 Page 发布的内容
+
+即使构建过程读取真实数据，最终 GitHub Pages artifact 仍必须排除：
+
+- 完整 raw notes export；
+- 完整 mark / review 正文；
+- 用户 review / thoughts；
+- 本地 Search index；
+- Private Reading Lab；
+- 私有 synthesis / semantic review；
+- API Key 或其他凭据。
+
+workflow 最终只上传 `site/`，并在上传前运行：
+
+```bash
+python scripts/validate_pages_output.py --js-out /tmp/we-read-pages-inline.js
+node --check /tmp/we-read-pages-inline.js
+```
+
+## 划线公开边界
+
+公开划线遵循 `docs/publication-policy.md`：
+
+```text
+source                marks/highlights only
+reviews               never published by this module
+max characters        90 per excerpt
+max per book          1
+max total             48
+full raw body         remains private
+```
+
+书目隐私范围和划线公开范围是两个独立开关，不能互相推导授权。
+
+## 仓库历史不是 Page 发布策略
+
+Public Page 的发布许可不等于允许自动删除或重写 Git 历史。
+
+仓库中历史遗留的个人 WeRead 数据由 Issue #2 单独跟踪。未经明确授权，不执行 destructive history rewrite。
