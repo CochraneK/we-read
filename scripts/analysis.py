@@ -6,6 +6,7 @@
 import json, os, re, datetime, html
 import random, io, base64
 from collections import Counter, defaultdict
+from metrics import category_participation
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(BASE)                       # 项目根目录
@@ -125,15 +126,10 @@ cards = "".join(f'<div class="card"><div class="c-val">{v}</div><div class="c-la
 
 # ================= A1 类别参与度矩阵 =================
 set_sec("A1")
-cat_books = Counter()
-cat_notes = Counter()
-for bid in notes_by_id:
-    c = cat_of(bid)
-    cat_books[c] += 1
-    cat_notes[c] += note_count(notes_by_id[bid])
-# 也统计书架全部书的类别（含无笔记）
-for b in SHELF.get("books", []):
-    cat_books[b.get("category") or "未知"] += 1
+# Use the shared union-by-bookId metric so shelf+notes overlap is counted once.
+_a1 = category_participation(SHELF.get("books", []), NOTES)
+cat_books = Counter(_a1["bookCount"])
+cat_notes = Counter(_a1["noteCount"])
 top_cats = [c for c, _ in cat_books.most_common(15)]
 density = {c: round(cat_notes[c] / cat_books[c], 1) if cat_books[c] else 0 for c in top_cats}
 fig_a1 = go.Figure()
