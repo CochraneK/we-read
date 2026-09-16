@@ -429,9 +429,9 @@ python scripts/plan_shelf_organization.py --strategy hybrid
 
 `scripts/analysis.py` 保留用于历史可复现性，但**不再作为新系统的数据真相层，也不继续扩展**。
 
-原因包括：
+历史债与限制包括：
 
-- 历史 A1 category double-counting；
+- A1 曾有 category double-counting，现已修复并统一复用 `metrics.category_participation()` 的 union-by-bookId 口径；
 - 私密标题样本展示；
 - Windows-only wordcloud font；
 - 年份硬编码；
@@ -475,15 +475,17 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 
 ---
 
-## 9. 现在还剩什么
+## 9. 维护阶段
 
-核心产品已进入维护阶段。真正还值得做的主要是：
+核心产品已进入维护阶段，默认策略是**停止横向扩功能**。当前只保留这些维护事项：
 
-1. 在用户自己的私有环境做一次完整真实数据端到端运行；
-2. Blindspot 增加更强反证维度；
-3. 可选的 Recall 私有语义差异分析；
-4. 继续保留 legacy 可复现性，但不再向 `analysis.py` 堆功能；
+1. 可选：在用户自己的私有环境做一次完整真实数据端到端验收；
+2. 保持 schema、validator、workflow 与 publication policy 一致；
+3. legacy `analysis.py` 只做必要 bugfix / 可复现性维护，不再扩功能；
+4. Page 现有 UI 组合层以维护为主，不继续新增 `pages_*_ui.py` 补丁层；若未来需要大改，优先合并现有层而不是继续叠加；
 5. 如需从 Git 历史彻底移除个人阅读数据，必须单独备份并显式授权后做 history rewrite。
+
+Blindspot 更强反证、Recall 私有语义差异等保留为**未来可选方向**，不是当前 backlog。
 
 `.gitignore` 只能阻止未来新增，不能清除历史提交。
 
