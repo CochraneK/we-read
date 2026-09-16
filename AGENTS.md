@@ -17,6 +17,7 @@
 7. **同步不覆盖用户内容**：自动同步只能改明确标记的 machine-managed 区域。
 8. **远端写操作预览优先**：任何可能修改微信读书远端状态的动作都必须先有 dry-run / plan、用户明确确认、执行后核验，并且只使用当前官方明确支持的写接口。
 9. **公开发布以 canonical policy 为准**：Public Archive 可以使用真实阅读事实、获授权的书目元数据与受限划线摘录，但不得因此推断完整 raw export、用户 review 或其他私有 evidence 也可公开。
+10. **Page 组合层冻结扩张**：现有 `pages_*.py` UI/增强层以维护为主。不要为了新增一个小功能继续创建新的字符串替换装饰层；重大 UI 改造应优先合并/简化现有层，再增加能力。
 
 ## 环境变量
 
@@ -52,7 +53,7 @@ scripts/metrics.py
 
 而不是复制进各 renderer。
 
-已知 legacy `analysis.py` 的 A1 有书架 / 笔记交集重复计数问题；新功能必须使用 `metrics.category_participation()` 的 union-by-bookId 口径。
+legacy `analysis.py` 的 A1 历史重复计数问题已经修复；当前与新功能统一使用 `metrics.category_participation()` 的 union-by-bookId 口径。
 
 确定性能力：
 
@@ -250,6 +251,7 @@ docs/                              生态与架构说明
 
 ## 明确保留的维护项
 
-1. 继续把 legacy `analysis.py` 拆成共享 loader / metrics / renderer，并彻底迁移 A1 正确口径。
-2. 公开 Git 历史中的个人数据清理必须单独确认后处理。
-3. 远端书架写入只在官方当前接口明确支持且用户再次确认后实现。
+1. legacy `analysis.py` 保持冻结，只做必要 bugfix / 历史可复现性维护；A1 已完成正确口径迁移。
+2. Public Page 现有组合层只做维护；不要继续新增 `pages_*_ui.py` 式补丁层。未来若进行大改，先制定合并现有 renderer/enhancer 的收敛方案。
+3. 公开 Git 历史中的个人数据清理必须单独确认后处理。
+4. 远端书架写入只在官方当前接口明确支持且用户再次确认后实现。
