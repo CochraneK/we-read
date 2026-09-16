@@ -11,12 +11,12 @@
 1. **事实与解释分层**：时长、进度、书目、笔记数由代码确定性计算；主题、认知转向、画像、Blindspot 属于 AI 解释层。
 2. **书架不等于阅读**：书架是兴趣 / acquisition intent；笔记、进度和阅读时长才是投入证据。
 3. **先 JSON，后 renderer**：解释型可视化必须先生成固定 Schema JSON，再交给稳定 renderer。
-4. **本地优先**：真实书架、划线、想法、API Key、搜索索引、报告和生成 Skill 默认不进入公开 Git。
+4. **本地优先 + 显式发布边界**：API Key、完整原始 evidence、搜索索引、Private Lab 与生成 Skill 默认保持私有；公开 Page 只能发布 `docs/publication-policy.md` 明确允许且通过 validator 的内容。
 5. **证据可追溯**：高阶结论尽量保留书籍、划线、时间段、置信度和反证。
 6. **不重复拉 API**：优先复用本地数据和 `visualization_context.json`。
 7. **同步不覆盖用户内容**：自动同步只能改明确标记的 machine-managed 区域。
 8. **远端写操作预览优先**：任何可能修改微信读书远端状态的动作都必须先有 dry-run / plan、用户明确确认、执行后核验，并且只使用当前官方明确支持的写接口。
-9. **公开 Demo 不用真实个人数据**：`site/` 只能使用合成 / 脱敏展示数据。
+9. **公开发布以 canonical policy 为准**：Public Archive 可以使用真实阅读事实、获授权的书目元数据与受限划线摘录，但不得因此推断完整 raw export、用户 review 或其他私有 evidence 也可公开。
 
 ## 环境变量
 
@@ -191,14 +191,15 @@ python scripts/build_quote_lib.py
 
 ## Public Page
 
-`site/index.html` 是公开 GitHub Pages 产品页。
+`site/index.html` 是公开 GitHub Pages 成品页。公开范围的唯一规范见 [`docs/publication-policy.md`](docs/publication-policy.md)。
 
-约束：
+当前约束：
 
-- 不读取 `data/`；
-- 不复制真实书名 / 划线 / 想法；
-- Demo 数据必须是合成数据；
-- Page workflow 只上传 `site/`。
+- workflow 可以从真实阅读数据生成公开档案，但最终只上传经过验证的 `site/`；
+- 聚合阅读事实、书目元数据以及经显式授权的 bounded highlight excerpts 可以进入公开 Page；
+- 完整 raw notes、完整 mark/review 正文、搜索索引、Private Reading Lab 与私有 synthesis 不得进入公开 Page；
+- `WEREAD_PAGES_INCLUDE_PRIVATE` 与 `WEREAD_PAGES_INCLUDE_PUBLIC_QUOTES` 是独立的发布开关；
+- 发布前必须经过 `scripts/validate_pages_output.py`，不能用 README 或人工判断替代 validator。
 
 ## 测试
 
@@ -241,7 +242,7 @@ scripts/
     recall.py
     report.py
 schemas/                           AI 输出契约
-site/                              合成数据 Public Page
+site/                              经 publication policy 约束的 Public Page artifact
 tests/                             合成数据回归测试
 .workbuddy/skills/                 Agent Skills
 docs/                              生态与架构说明
