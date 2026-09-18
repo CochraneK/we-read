@@ -110,6 +110,36 @@ python scripts/renderers/recall.py
 
 回顾卡必须先让用户回答，再展开证据；不要把任务设计成逐字背诵。
 
+## Private Text Mining Lab
+
+Lite 核心：
+
+```bash
+python scripts/build_text_mining_context.py
+python scripts/renderers/text_mining_private.py
+```
+
+必须始终分离：
+
+```text
+source_text = 保存的作者/原书文本 = exposure evidence
+user_thought = 用户自己写的 review = expression evidence
+```
+
+禁止把 source highlight 说成用户观点。
+
+Lite 的中文 token 是 character bi/tri-gram，因此输出只能叫 lexical unit / lexical community / topic candidate，不能叫“真实语义主题”。
+
+可选 semantic：
+
+```bash
+python scripts/build_private_reading_lab.py --semantic-text --embedding-model "MODEL_OR_LOCAL_PATH"
+```
+
+Semantic similarity / cluster / drift 只能解释为 representational proximity / corpus shift / candidate relationship，禁止直接解释为赞同、因果、内化、人格、诊断或敏感属性。
+
+完整规则见 `docs/text-mining.md`。
+
 ## Blindspot / Counter Reading
 
 ```bash
@@ -229,6 +259,8 @@ scripts/
   build_search_index.py
   build_recall_queue.py
   build_blindspot_context.py
+  build_text_mining_context.py
+  build_semantic_text_mining.py      optional
   sync_obsidian.py
   book_to_skill.py
   plan_shelf_organization.py
@@ -241,6 +273,7 @@ scripts/
     profile.py
     blindspot.py
     recall.py
+    text_mining_private.py
     report.py
 schemas/                           AI 输出契约
 site/                              经 publication policy 约束的 Public Page artifact
