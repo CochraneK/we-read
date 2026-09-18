@@ -145,7 +145,7 @@ notes export
 Private Lab 现在默认生成零依赖的文本挖掘层：
 
 - Source highlights 与 user-authored reviews 分离；
-- TF-IDF / lexical diversity；
+- TF-IDF / lexical diversity / Source-vs-Self contrastive terms；
 - document co-occurrence + positive-PMI lexical communities；
 - 年度词汇结构、burst、concept resurgence；
 - lexical novelty / redundancy；
@@ -169,7 +169,7 @@ python scripts/build_private_reading_lab.py \
   --embedding-model "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 ```
 
-增加 embedding clusters、跨书 semantic nearest-neighbors、年度 corpus drift 与 Source → Self semantic candidates。Similarity 不等于赞同、因果或“认知改变”。
+增加 embedding clusters、NMF/LDA topic baselines、跨书 semantic nearest-neighbors、年度 corpus drift 与 Source → Self semantic candidates。Similarity 不等于赞同、因果或“认知改变”。
 
 完整边界见 [`docs/text-mining.md`](docs/text-mining.md)。
 
