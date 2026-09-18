@@ -30,7 +30,7 @@ WeRead Intelligence
 ├─ Public Reading Archive
 │  └─ 长期阅读档案 / 版图 / 节律 / 知识结构 / 书架探索
 └─ Private Reading Lab
-   └─ 原始证据 / Search / Recall / Deep Notes / Cards / Alchemy / Advisor / Path / Review
+   └─ 原始证据 / Search / Recall / Deep Notes / Text Mining / Cards / Alchemy / Advisor / Path / Review
 ```
 
 ---
@@ -139,6 +139,39 @@ notes export
 - 划线 ↔ 本人想法章节关系；
 - 想法密集书；
 - 划线很多但本人想法少的书。
+
+### Text Mining Lab
+
+Private Lab 现在默认生成零依赖的文本挖掘层：
+
+- Source highlights 与 user-authored reviews 分离；
+- TF-IDF / lexical diversity；
+- document co-occurrence + positive-PMI lexical communities；
+- 年度词汇结构、burst、concept resurgence；
+- lexical novelty / redundancy；
+- exposure → expression lexical lag；
+- review 中的 question / challenge / uncertainty / causal 等显式 rhetorical signals。
+
+入口：
+
+```text
+data/analysis/private_lab/text_mining.html
+```
+
+可选本地语义层：
+
+```bash
+pip install -r requirements-text-mining.txt
+
+python scripts/build_private_reading_lab.py \
+  --include-private \
+  --semantic-text \
+  --embedding-model "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+```
+
+增加 embedding clusters、跨书 semantic nearest-neighbors、年度 corpus drift 与 Source → Self semantic candidates。Similarity 不等于赞同、因果或“认知改变”。
+
+完整边界见 [`docs/text-mining.md`](docs/text-mining.md)。
 
 ### Recall / Feynman / Spaced Review
 
@@ -462,6 +495,8 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 - Search / Recall / stable evidenceId；
 - Recall browser-local answerHistory / spaced review；
 - Deep Notes；
+- Text Mining Lite / Source-vs-Self / novelty / burst / resurgence；
+- Text Mining optional semantic contracts；
 - Quote Cards；
 - Alchemy synthesis；
 - Narrative Review platform alias / fact-bounded draft；
@@ -487,7 +522,7 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 4. Page 现有 UI 组合层以维护为主，不继续新增 `pages_*_ui.py` 补丁层；若未来需要大改，优先合并现有层而不是继续叠加；
 5. 如需从 Git 历史彻底移除个人阅读数据，必须单独备份并显式授权后做 history rewrite。
 
-Blindspot 更强反证、Recall 私有语义差异等保留为**未来可选方向**，不是当前 backlog。
+更重的 NLI contradiction、BERTopic/STM 对照、语义 Recall diff 等保留为**未来可选研究方向**，不是当前 backlog。
 
 `.gitignore` 只能阻止未来新增，不能清除历史提交。
 
@@ -500,7 +535,7 @@ Blindspot 更强反证、Recall 私有语义差异等保留为**未来可选方�
 - ✅ Heatmap / Map / Graph / Shift / Profile
 - ✅ 498 本书架 Explorer
 - ✅ Private Reading Lab
-- ✅ Search / Deep Notes / Quote Cards
+- ✅ Search / Deep Notes / Text Mining Lab / Quote Cards
 - ✅ Recall + answer history + spaced review
 - ✅ Alchemy private synthesis
 - ✅ Narrative Review draft / Markdown / HTML
