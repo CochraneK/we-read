@@ -148,7 +148,8 @@ Private Lab 现在默认生成零依赖的文本挖掘层：
 - TF-IDF / lexical diversity / Source-vs-Self contrastive terms；
 - document co-occurrence + positive-PMI lexical communities；
 - 年度词汇结构、burst、concept resurgence；
-- lexical novelty / redundancy；
+- Jensen–Shannon change-point、年度 concept-network evolution；
+- lexical novelty / redundancy / exploration–exploitation proxy；
 - exposure → expression lexical lag；
 - review 中的 question / challenge / uncertainty / causal 等显式 rhetorical signals。
 
@@ -169,7 +170,16 @@ python scripts/build_private_reading_lab.py \
   --embedding-model "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 ```
 
-增加 embedding clusters、NMF/LDA topic baselines、跨书 semantic nearest-neighbors、年度 corpus drift 与 Source → Self semantic candidates。Similarity 不等于赞同、因果或“认知改变”。
+增加 embedding clusters、NMF/LDA topic baselines、跨书 semantic nearest-neighbors、年度 corpus drift 与 Source → Self semantic candidates。还可继续启用本地 NLI，对 semantic 候选做 entailment / contradiction 检测。Similarity/NLI 都不等于事实真值、用户赞同或因果。
+
+本地 NLI 可选层：
+
+```bash
+python scripts/build_private_reading_lab.py \
+  --include-private \
+  --semantic-text --embedding-model "MODEL_OR_LOCAL_PATH" \
+  --nli-text --nli-model "NLI_MODEL_OR_LOCAL_PATH"
+```
 
 完整边界见 [`docs/text-mining.md`](docs/text-mining.md)。
 
@@ -495,8 +505,8 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 - Search / Recall / stable evidenceId；
 - Recall browser-local answerHistory / spaced review；
 - Deep Notes；
-- Text Mining Lite / Source-vs-Self / novelty / burst / resurgence；
-- Text Mining optional semantic contracts；
+- Text Mining Lite / Source-vs-Self / novelty / burst / resurgence / change-point / network evolution；
+- Text Mining optional semantic + NMF/LDA + NLI contracts；
 - Quote Cards；
 - Alchemy synthesis；
 - Narrative Review platform alias / fact-bounded draft；
@@ -522,7 +532,7 @@ GitHub Actions 在 Python 3.11 与 3.13 上运行。
 4. Page 现有 UI 组合层以维护为主，不继续新增 `pages_*_ui.py` 补丁层；若未来需要大改，优先合并现有层而不是继续叠加；
 5. 如需从 Git 历史彻底移除个人阅读数据，必须单独备份并显式授权后做 history rewrite。
 
-更重的 NLI contradiction、BERTopic/STM 对照、语义 Recall diff 等保留为**未来可选研究方向**，不是当前 backlog。
+BERTopic/STM 对照、语义 Recall diff、formal dynamic-topic model 等保留为**未来可选研究方向**，不是当前 backlog。
 
 `.gitignore` 只能阻止未来新增，不能清除历史提交。
 
