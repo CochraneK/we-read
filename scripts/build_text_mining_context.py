@@ -170,15 +170,99 @@ def lexical_diversity(rows: list[dict], counters: list[Counter], role: str) -> d
     total = sum(merged.values())
     types = len(merged)
     hapax = sum(1 for value in merged.values() if value == 1)
+    probs = [count / total for count in merged.values()] if total else []
+    entropy = -sum(p * log2(p) for p in probs if p > 0)
+    max_entropy = log2(types) if types > 1 else 0.0
     return {
         "documents": docs,
         "tokens": total,
         "types": types,
         "typeTokenRatio": round(types / total, 4) if total else 0.0,
+        "rootTypeTokenRatio": round(types / sqrt(total), 4) if total else 0.0,
+        "herdanC": round(log(types) / log(total), 4) if total > 1 and types > 1 else 0.0,
+        "shannonEntropy": round(entropy, 4),
+        "normalizedEntropy": round(entropy / max_entropy, 4) if max_entropy else 0.0,
         "hapaxShare": round(hapax / types, 4) if types else 0.0,
         "unit": "English words + Chinese character bi/tri-grams",
+        "note": "TTR remains length-sensitive; rootTTR, HerdanC and normalized entropy are included as complementary descriptors.",
     }
 
+
+
+
+def term_dispersion(rows: list[dict], counters: list[Counter], limit: int = 40) -> dict:
+    """Measure whether lexical units are concentrated in one book or spread across books."""
+    by_term_books = defaultdict(Counter)
+    by_term_docs = Counter()
+    all_books = {row["bookId"] for row in rows if row.get("bookId")}
+    for row, counter in zip(rows, counters):
+        book_id = row.get("bookId")
+        if not book_id:
+            continue
+        for term in counter:
+            by_term_books[term][book_id] += 1
+            by_term_docs[term] += 1
+
+    rows_out = []
+    for term, books in by_term_books.items():
+        docs = by_term_docs[term]
+        if docs < 2:
+            continue
+        total = sum(books.values())
+        probs = [count / total for count in books.values()]
+        entropy = -sum(p * log2(p) for p in probs if p > 0)
+        max_entropy = log2(len(books)) if len(books) > 1 else 0.0
+        normalized = entropy / max_entropy if max_entropy else 0.0
+        concentration = max(probs) if probs else 0.0
+        rows_out.append({
+            "term": term,
+            "documents": docs,
+            "books": len(books),
+            "bookCoverage": round(len(books) / max(1, len(all_books)), 4),
+            "normalizedBookEntropy": round(normalized, 4),
+            "maxBookShare": round(concentration, 4),
+            "status": "lexical_cross_book_dispersion",
+        })
+
+    broad = sorted(
+        rows_out,
+        key=lambda x: (-x["books"], -x["normalizedBookEntropy"], -x["documents"], x["term"]),
+    )[:limit]
+    concentrated = sorted(
+        (x for x in rows_out if x["documents"] >= 3),
+        key=lambda x: (-x["maxBookShare"], -x["documents"], x["term"]),
+    )[:limit]
+    return {
+        "crossBook": broad,
+        "bookConcentrated": concentrated,
+        "method": "book-level entropy and maximum-book share over document presence; lexical dispersion, not conceptual universality",
+    }
+
+
+def yearly_lexical_diversity(rows: list[dict], counters: list[Counter]) -> list[dict]:
+    result = []
+    years = sorted({row["year"] for row in rows if row.get("year")})
+    for year in years:
+        indices = [i for i, row in enumerate(rows) if row.get("year") == year]
+        merged = Counter()
+        for i in indices:
+            merged.update(counters[i])
+        total = sum(merged.values())
+        types = len(merged)
+        probs = [count / total for count in merged.values()] if total else []
+        entropy = -sum(p * log2(p) for p in probs if p > 0)
+        max_entropy = log2(types) if types > 1 else 0.0
+        result.append({
+            "year": year,
+            "documents": len(indices),
+            "tokens": total,
+            "types": types,
+            "rootTypeTokenRatio": round(types / sqrt(total), 4) if total else 0.0,
+            "herdanC": round(log(types) / log(total), 4) if total > 1 and types > 1 else 0.0,
+            "normalizedEntropy": round(entropy / max_entropy, 4) if max_entropy else 0.0,
+            "status": "lexical_diversity_descriptor",
+        })
+    return result
 
 
 def contrastive_terms(rows: list[dict], counters: list[Counter], limit: int = 30) -> dict:
@@ -664,6 +748,7 @@ def build(context: dict) -> dict:
             "allTopTerms": top_terms(rows, counters, idf),
         },
         "contrast": contrastive_terms(rows, counters),
+        "dispersion": term_dispersion(rows, counters),
         "cooccurrence": {
             "edges": edges,
             "communities": communities,
@@ -671,6 +756,7 @@ def build(context: dict) -> dict:
         },
         "temporal": {
             "yearlyTerms": temporal_terms(rows, counters, idf),
+            "lexicalDiversity": yearly_lexical_diversity(rows, counters),
             "bursts": bursts,
             "resurgence": resurgence,
             "changePoints": temporal_change_points(rows, counters),
@@ -691,6 +777,8 @@ def build(context: dict) -> dict:
             "Jensen-Shannon change points describe corpus distribution shifts, not direct mental-state changes.",
             "Exploration/exploitation is only a lexical novelty proxy, not a recommendation or optimization target.",
             "Concept-network hubs describe co-occurrence structure, not psychological importance.",
+            "Cross-book lexical dispersion is not proof that a concept is universal or central.",
+            "Lexical richness metrics are descriptive and remain sensitive to corpus size and writing style.",
             "Exposure→expression lag is temporal lexical overlap, not proof that a book caused a later belief.",
             "All raw snippets in this artifact are private-only.",
         ],
