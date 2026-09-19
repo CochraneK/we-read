@@ -138,6 +138,10 @@ python scripts/build_private_reading_lab.py --semantic-text --embedding-model "M
 
 Semantic similarity / cluster / drift 只能解释为 representational proximity / corpus shift / candidate relationship，禁止直接解释为赞同、因果、内化、人格、诊断或敏感属性。
 
+Lite change-point 使用年度 lexical distribution 的 Jensen–Shannon divergence；exploration/exploitation 只是 lexical novelty proxy；concept-network hubs 只是共现结构，三者都不能当作心理状态。
+
+可选 NLI 只能运行在 semantic 候选 pair 上，并要求模型显式提供 entailment/contradiction label。NLI 输出仍叫 candidate，不能升级成整本书、作者或用户的逻辑冲突结论。
+
 完整规则见 `docs/text-mining.md`。
 
 ## Blindspot / Counter Reading
@@ -261,6 +265,7 @@ scripts/
   build_blindspot_context.py
   build_text_mining_context.py
   build_semantic_text_mining.py      optional
+  build_nli_relations.py              optional
   sync_obsidian.py
   book_to_skill.py
   plan_shelf_organization.py
