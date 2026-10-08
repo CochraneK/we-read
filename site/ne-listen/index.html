@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="暃莀 的长期网易云听歌档案。">
+<title>暃莀 · ne-listen</title>
+<style>
+:root{--bg:#f4f0e9;--paper:#fffdf9;--ink:#282421;--muted:#776e66;--line:#dfd4c6;--accent:#b85d49;--soft:#eee4d7;--green:#7b8f75;--shadow:0 12px 36px rgba(48,39,31,.07)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"SF Pro Display","PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit}.shell{width:min(1120px,calc(100% - 32px));margin:auto}
+.nav{position:sticky;top:0;z-index:20;background:rgba(244,240,233,.88);backdrop-filter:blur(16px);border-bottom:1px solid rgba(223,212,198,.8)}.navin{height:62px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{font-weight:850;letter-spacing:-.035em}.brand i{font-style:normal;color:var(--accent)}.links{display:flex;gap:6px;align-items:center}.links a{text-decoration:none;font-size:12px;color:var(--muted);padding:8px 10px;border-radius:999px}.links a:hover{background:var(--paper);color:var(--ink)}.links .gh{border:1px solid var(--line);background:var(--paper)}
+.hero{padding:96px 0 70px}.eyebrow{font-size:11px;letter-spacing:.16em;font-weight:850;color:var(--accent)}h1{font-size:clamp(52px,8vw,96px);line-height:.96;letter-spacing:-.075em;margin:14px 0 26px;max-width:1000px}.hero-copy{font-size:clamp(16px,2vw,20px);line-height:1.75;color:var(--muted);max-width:760px;margin:0}.hero-copy strong{color:var(--ink);font-weight:650}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:54px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.stat{padding:22px 20px 22px 0}.stat:not(:last-child){border-right:1px solid var(--line);padding-right:20px;margin-right:20px}.stat b{display:block;font-size:30px;letter-spacing:-.05em}.stat span{font-size:11px;color:var(--muted)}
+section{padding:78px 0;border-top:1px solid var(--line);scroll-margin-top:72px}.sectionhead{display:flex;align-items:end;justify-content:space-between;gap:30px;margin-bottom:34px}.sectionhead h2{font-size:clamp(32px,5vw,54px);line-height:1.02;letter-spacing:-.055em;margin:0;max-width:700px}.sectionhead p{max-width:440px;color:var(--muted);font-size:13px;line-height:1.7;margin:0}
+.now{display:grid;grid-template-columns:1.35fr .65fr;gap:12px}.feature{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow)}.feature-kicker{font-size:10px;letter-spacing:.12em;color:var(--accent);font-weight:850}.feature h3{font-size:clamp(30px,4vw,54px);line-height:1.04;letter-spacing:-.055em;margin:18px 0 10px}.feature p{color:var(--muted);margin:0}.facts{display:grid;gap:0}.fact{padding:19px 0;border-bottom:1px solid var(--line)}.fact:first-child{padding-top:0}.fact:last-child{border-bottom:0;padding-bottom:0}.fact span{display:block;font-size:11px;color:var(--muted)}.fact b{font-size:21px;letter-spacing:-.025em}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:46px}.ranklist{list-style:none;padding:0;margin:0}.ranklist li{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--line)}.ranklist li:last-child{border-bottom:0}.rank{font-size:10px;color:var(--accent);font-weight:850}.rank-name{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rank-value{font-size:12px;color:var(--muted)}.subhead{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:800;margin:0 0 8px}
+.taste{display:grid;grid-template-columns:repeat(3,1fr);gap:34px}.taste h3{font-size:18px;margin:0 0 20px}.ratio{margin:15px 0}.ratio-line{display:flex;justify-content:space-between;gap:14px;font-size:13px}.ratio-line b{font-size:12px;color:var(--muted)}.hairline{height:2px;background:#e4dbcf;margin-top:8px;overflow:hidden}.hairline i{display:block;height:100%;background:var(--accent)}.yearstrip{height:230px;display:grid;grid-template-columns:repeat(9,minmax(54px,1fr));gap:9px;align-items:end}.year{display:grid;grid-template-rows:1fr auto auto;min-width:0;text-align:center;gap:6px;height:100%}.year-bar{height:165px;display:flex;align-items:end;justify-content:center;border-bottom:1px solid var(--line)}.year-bar i{display:block;width:min(28px,60%);background:var(--accent);border-radius:5px 5px 0 0;opacity:.86}.year b{font-size:12px}.year span{font-size:10px;color:var(--muted)}
+.patterns{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.pattern{padding:26px 28px 26px 0}.pattern:not(:last-child){border-right:1px solid var(--line);padding-right:28px;margin-right:28px}.pattern b{font-size:35px;letter-spacing:-.05em;display:block}.pattern span{font-size:13px;font-weight:700}.pattern p{font-size:11px;line-height:1.6;color:var(--muted);margin:6px 0 0}
+.textmap{display:grid;grid-template-columns:1.25fr .75fr;gap:46px;align-items:start}.text-sub{margin-top:32px}.topiclist{margin-top:10px;border-top:1px solid var(--line)}.topicrow{display:flex;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}.topicrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topicrow b{font-size:11px;color:var(--muted);white-space:nowrap}.termwall{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}.term{display:inline-flex;padding:9px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:14px;box-shadow:var(--shadow)}.termwall.small .term{font-size:11px;padding:6px 9px;box-shadow:none}.textaside{border-left:1px solid var(--line);padding-left:32px}.textfact{padding:0 0 20px;margin-bottom:20px;border-bottom:1px solid var(--line)}.textfact:last-child{border-bottom:0;margin-bottom:0}.textfact>span{display:block;font-size:11px;color:var(--muted);margin-bottom:7px}.textfact>b{font-size:30px;letter-spacing:-.04em}.playlists{display:grid;grid-template-columns:1.1fr .9fr;gap:46px}.library-note{font-size:clamp(28px,4vw,44px);line-height:1.08;letter-spacing:-.045em;margin:0 0 18px}.library-copy{color:var(--muted);max-width:460px}.mini-stats{display:flex;gap:26px;margin-top:28px;flex-wrap:wrap}.mini-stats b{font-size:22px;display:block}.mini-stats span{font-size:10px;color:var(--muted)}
+details{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}summary{cursor:pointer;list-style:none;padding:22px 0;font-weight:750}summary::-webkit-details-marker{display:none}summary:after{content:"＋";float:right;color:var(--muted)}details[open] summary:after{content:"－"}.method{padding:0 0 26px;color:var(--muted);font-size:12px;line-height:1.75;display:grid;grid-template-columns:1fr 1fr;gap:28px}.method strong{color:var(--ink)}.caps{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.caps span{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 8px;font-size:10px;color:var(--green)}.caps .muted{color:var(--muted)}.empty{color:var(--muted);font-size:12px;padding:10px 0}
+.footer{padding:40px 0 64px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:24px;color:var(--muted);font-size:11px}
+@media(max-width:900px){.now,.playlists,.textmap{grid-template-columns:1fr}.textaside{border-left:0;border-top:1px solid var(--line);padding:24px 0 0}.taste{grid-template-columns:1fr 1fr}.duo{gap:24px}.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0;margin-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}.yearstrip{overflow-x:auto;grid-template-columns:repeat(9,72px)}}
+@media(max-width:650px){.shell{width:min(100% - 22px,1120px)}.hero{padding:66px 0 54px}.links a:not(.gh){display:none}.sectionhead{display:block}.sectionhead p{margin-top:12px}.duo,.taste,.patterns,.method{grid-template-columns:1fr}.duo{gap:44px}.patterns{border-bottom:0}.pattern,.pattern:not(:last-child){border-right:0;border-bottom:1px solid var(--line);padding:20px 0;margin:0}.stats{display:grid;grid-template-columns:1fr 1fr}.stat,.stat:not(:last-child){margin:0;padding:18px 14px 18px 0}.stat:nth-child(odd){border-right:1px solid var(--line)}.stat b{font-size:24px}.feature{padding:22px}.yearstrip{height:auto;overflow:visible;grid-template-columns:repeat(3,1fr);gap:18px 8px}.year{height:128px}.year-bar{height:86px}.footer{display:block}.footer span{display:block;margin-top:8px}}
+</style>
+</head>
+<body>
+<nav class="nav"><div class="shell navin"><div class="brand">ne-<i>listen</i></div><div class="links"><a href="#now">最近</a><a href="#long">长期</a><a href="#taste">版图</a><a href="#years">年份</a><a class="gh" href="/we-read/">阅读档案 ↗</a></div></div></nav>
+<main>
+<header class="shell hero">
+<div class="eyebrow">A PERSONAL LISTENING ARCHIVE</div>
+<h1>最近，我一直在听《生活倒影》。</h1>
+<p class="hero-copy">这是 <strong>暃莀</strong> 的长期听歌档案。一份会继续生长的音乐记录。</p>
+<div class="stats">
+<div class="stat"><b>23,989</b><span>网易云听歌记录</span></div>
+<div class="stat"><b>5,868</b><span>红心歌曲</span></div>
+<div class="stat"><b>18</b><span>歌单</span></div>
+<div class="stat"><b>9</b><span>年有记录</span></div>
+</div>
+</header>
+
+<section id="now"><div class="shell">
+<div class="sectionhead"><h2>最近在听</h2><p>本月最常出现的声音。</p></div>
+<div class="now">
+<article class="feature"><div class="feature-kicker">THIS MONTH</div><h3>生活倒影</h3><p>556 次 · 网易云本月足迹</p></article>
+<aside class="feature facts">
+<div class="fact"><span>最近常听的歌手</span><b>苏运莹</b><small>556 次</small></div>
+<div class="fact"><span>网易云突出曲风</span><b>国风</b><small>国风流行</small></div>
+<div class="fact"><span>本月听歌天数</span><b>12 天</b></div>
+</aside>
+</div>
+</div></section>
+
+<section id="long"><div class="shell">
+<div class="sectionhead"><h2>有些声音，会一直回来。</h2></div>
+<div class="duo">
+<div><div class="subhead">SONGS I RETURN TO</div><ol class="ranklist"><li><span class="rank">01</span><span class="rank-name">青石巷</span><span class="rank-value">7,441</span></li><li><span class="rank">02</span><span class="rank-name">遥远的歌(Bonus Track)</span><span class="rank-value">6,288</span></li><li><span class="rank">03</span><span class="rank-name">April Encounter</span><span class="rank-value">3,490</span></li><li><span class="rank">04</span><span class="rank-name">你不是真正的快乐（Cover 五月天 Acoustic Ver.）</span><span class="rank-value">2,984</span></li><li><span class="rank">05</span><span class="rank-name">想带你去最遥远的屿</span><span class="rank-value">2,768</span></li><li><span class="rank">06</span><span class="rank-name">星如雨</span><span class="rank-value">2,597</span></li></ol></div>
+<div><div class="subhead">ARTISTS I RETURN TO</div><ol class="ranklist"><li><span class="rank">01</span><span class="rank-name">Cannie</span><span class="rank-value">9,272</span></li><li><span class="rank">02</span><span class="rank-name">魏琮霏</span><span class="rank-value">7,441</span></li><li><span class="rank">03</span><span class="rank-name">很美味</span><span class="rank-value">4,000</span></li><li><span class="rank">04</span><span class="rank-name">陈嘉俊是这个嘉</span><span class="rank-value">3,062.5</span></li><li><span class="rank">05</span><span class="rank-name">Vicky宣宣</span><span class="rank-value">2,500</span></li><li><span class="rank">06</span><span class="rank-name">Jam</span><span class="rank-value">2,474</span></li></ol></div>
+</div>
+</div></section>
+
+<section id="taste"><div class="shell">
+<div class="sectionhead"><h2>我的音乐版图，不止一个标签。</h2><p>曲风 · 语言 · 年代</p></div>
+<div class="taste">
+<div><h3>曲风</h3><div class="ratio"><div class="ratio-line"><span>流行</span><b>71%</b></div><div class="hairline"><i style="width:100.0%"></i></div></div><div class="ratio"><div class="ratio-line"><span>国风</span><b>17%</b></div><div class="hairline"><i style="width:23.9%"></i></div></div><div class="ratio"><div class="ratio-line"><span>原声带</span><b>5%</b></div><div class="hairline"><i style="width:7.0%"></i></div></div><div class="ratio"><div class="ratio-line"><span>民谣</span><b>5%</b></div><div class="hairline"><i style="width:7.0%"></i></div></div><div class="ratio"><div class="ratio-line"><span>摇滚</span><b>2%</b></div><div class="hairline"><i style="width:4.0%"></i></div></div></div>
+<div><h3>语言</h3><div class="ratio"><div class="ratio-line"><span>华语</span><b>75%</b></div><div class="hairline"><i style="width:100.0%"></i></div></div><div class="ratio"><div class="ratio-line"><span>英语</span><b>10%</b></div><div class="hairline"><i style="width:13.3%"></i></div></div><div class="ratio"><div class="ratio-line"><span>粤语</span><b>6%</b></div><div class="hairline"><i style="width:8.0%"></i></div></div></div>
+<div><h3>年代</h3><div class="ratio"><div class="ratio-line"><span>2020</span><b>88 首</b></div><div class="hairline"><i style="width:100.0%"></i></div></div><div class="ratio"><div class="ratio-line"><span>2010</span><b>75 首</b></div><div class="hairline"><i style="width:85.2%"></i></div></div><div class="ratio"><div class="ratio-line"><span>2000</span><b>25 首</b></div><div class="hairline"><i style="width:28.4%"></i></div></div></div>
+</div>
+</div></section>
+
+
+<section id="lyrics"><div class="shell">
+<div class="sectionhead"><h2>歌词里，也有一张地图。</h2><p>179/180 首歌词进入本次文本分析</p></div>
+<div class="textmap">
+<div><div class="subhead">BEHAVIOR-WEIGHTED TF-IDF</div><div class="termwall"><span class="term">世界</span><span class="term">回忆</span><span class="term">月亮</span><span class="term">慢慢</span><span class="term">忘记</span><span class="term">离开</span><span class="term">一天</span><span class="term">说话</span><span class="term">孤独</span><span class="term">美丽</span><span class="term">love</span><span class="term">心中</span></div><div class="subhead text-sub">EXPLORATORY NMF THEMES</div><div class="topiclist"><div class="topicrow"><span>忘记 / 看见 / 的话</span><b>19.9%</b></div><div class="topicrow"><span>模样 / 晚上 / 地方</span><b>15.6%</b></div><div class="topicrow"><span>月亮 / 慢慢 / 说话</span><b>14.9%</b></div><div class="topicrow"><span>离开 / 世界 / 我会</span><b>13.6%</b></div></div></div>
+<div class="textaside"><div class="textfact"><span>词汇分布差异 · JSD</span><b>0.659</b></div><div class="textfact"><span>潜在语义距离 · LSA</span><b>0.139</b></div><div class="textfact"><span>NMF ↔ LSA/KMeans 一致性 · AMI</span><b>0.249</b></div><div class="textfact"><span>最近更常出现</span><div class="termwall small"><span class="term">慢慢</span><span class="term">何以</span><span class="term">alone</span><span class="term">you&#x27;re</span><span class="term">人生</span><span class="term">忘记</span><span class="term">明月</span><span class="term">烦恼</span></div></div></div>
+</div>
+</div></section>
+
+
+<section id="years"><div class="shell">
+<div class="sectionhead"><h2>听歌这件事，已经留下了年份。</h2><p>2017—2025</p></div>
+<div class="yearstrip"><div class="year"><div class="year-bar"><i style="height:8.0%"></i></div><b>2017</b><span>828</span></div><div class="year"><div class="year-bar"><i style="height:15.6%"></i></div><b>2018</b><span>2,073</span></div><div class="year"><div class="year-bar"><i style="height:100.0%"></i></div><b>2019</b><span>13,274</span></div><div class="year"><div class="year-bar"><i style="height:39.0%"></i></div><b>2020</b><span>5,180</span></div><div class="year"><div class="year-bar"><i style="height:36.9%"></i></div><b>2021</b><span>4,895</span></div><div class="year"><div class="year-bar"><i style="height:45.8%"></i></div><b>2022</b><span>6,074</span></div><div class="year"><div class="year-bar"><i style="height:45.7%"></i></div><b>2023</b><span>6,062</span></div><div class="year"><div class="year-bar"><i style="height:34.8%"></i></div><b>2024</b><span>4,623</span></div><div class="year"><div class="year-bar"><i style="height:25.1%"></i></div><b>2025</b><span>3,331</span></div></div>
+</div></section>
+
+<section><div class="shell">
+<div class="sectionhead"><h2>再看三件小事。</h2></div>
+<div class="patterns">
+<div class="pattern"><b>32.3%</b><span>Repeat Index</span><p>长期 Top100 中，头部 10% 歌曲占已知播放的比例。</p></div>
+<div class="pattern"><b>70.8</b><span>Effective artists</span><p>基于 Shannon entropy 的有效歌手数量。</p></div>
+<div class="pattern"><b>97.7%</b><span>最近不在 Top100</span><p>不是“新歌率”，只说明最近播放没有落在长期 Top100。</p></div>
+</div>
+</div></section>
+
+<section id="library"><div class="shell">
+<div class="sectionhead"><h2>歌单，是另一种记忆。</h2></div>
+<div class="playlists">
+<div><h3 class="library-note">5,868 首红心，5,971 首可恢复歌单曲目。</h3><p class="library-copy">首页只留几个最大的歌单，完整内容保留在私有数据层。 最相近的两个歌单是「暃莀喜欢的音乐」与「放学回家啦」，Jaccard 8.5%。</p><div class="mini-stats"><div><b>17</b><span>自建歌单</span></div><div><b>1</b><span>收藏歌单</span></div><div><b>100%</b><span>曲目恢复率</span></div></div></div>
+<div><div class="subhead">LARGEST PLAYLISTS</div><ol class="ranklist"><li><span class="rank">01</span><span class="rank-name">暃莀喜欢的音乐</span><span class="rank-value">5,868 首</span></li><li><span class="rank">02</span><span class="rank-name">放学回家啦</span><span class="rank-value">522 首</span></li><li><span class="rank">03</span><span class="rank-name">早起去上学</span><span class="rank-value">320 首</span></li><li><span class="rank">04</span><span class="rank-name">纯྅</span><span class="rank-value">113 首</span></li><li><span class="rank">05</span><span class="rank-name">2021-2024年度歌单</span><span class="rank-value">98 首</span></li><li><span class="rank">06</span><span class="rank-name">小语种</span><span class="rank-value">93 首</span></li></ol></div>
+</div>
+</div></section>
+
+<section><div class="shell">
+<details>
+<summary>数据说明</summary>
+<div class="method">
+<div><strong>这页是什么</strong><br>网易云直接返回的数据 + ne-listen 的确定性计算。歌词文本只在私有构建层处理，公开页不包含歌词原文；NMF/LSA 只发布聚合主题和距离；当前 NMF 与 LSA/KMeans 的 AMI 会直接展示，用来提醒主题的一致性有限。长期排行接口只覆盖 Top100，因此页面不会把榜外历史当作 0，也不会声称恢复了每一次播放。</div>
+<div><strong>当前覆盖</strong><br>100% 的 V1 数据能力在本次同步中可用。Cookie、原始 API 响应、normalized archive 和 snapshots 都不会进入公开 Page。<div class="caps"><span>✓ account</span><span>✓ profile</span><span>✓ user_level</span><span>✓ record_all</span><span>✓ record_week</span><span>✓ playlists</span><span>✓ playlist_tracks</span><span>✓ liked_ids</span><span>✓ recent_songs</span><span>✓ listen_total</span><span>✓ listen_realtime_week</span><span>✓ listen_realtime_month</span><span>✓ listen_report_year</span><span>✓ listen_year</span><span>✓ style_preference</span></div></div>
+</div>
+</details>
+</div></section>
+</main>
+<footer class="shell footer"><div>ne-listen · personal music archive</div><span>Last snapshot · 2026-09-18</span></footer>
+</body>
+</html>
