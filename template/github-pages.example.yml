@@ -1,0 +1,63 @@
+# Inactive example. Copy this file to .github/workflows/pages.yml in YOUR fork/repository.
+name: weread-template-pages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    env:
+      WEREAD_API_KEY: ${{ secrets.WEREAD_API_KEY }}
+      WEREAD_DATA_DIR: ${{ github.workspace }}/.weread-data
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Export my WeRead data
+        run: |
+          python scripts/export_notes.py
+          python scripts/fetch_enrich.py
+
+      - name: Build isolated template site
+        run: |
+          python scripts/build_template_site.py \
+            --data "$WEREAD_DATA_DIR" \
+            --output dist
+
+      - name: Confirm expected artifact
+        run: |
+          test -s dist/index.html
+          test -s dist/report-data.json
+          test -s dist/template-build.json
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
